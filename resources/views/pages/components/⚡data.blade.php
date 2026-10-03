@@ -6,16 +6,22 @@ use Livewire\Component;
 
 new #[Title('Data Display')] class extends Component {
     public array $rows = [
-        ['name' => 'flux:button', 'group' => 'Actions', 'status' => 'Stable', 'usage' => '482'],
-        ['name' => 'flux:select', 'group' => 'Forms', 'status' => 'Stable', 'usage' => '317'],
-        ['name' => 'flux:date-picker', 'group' => 'Forms', 'status' => 'Pro', 'usage' => '96'],
-        ['name' => 'flux:modal', 'group' => 'Overlays', 'status' => 'Stable', 'usage' => '254'],
-        ['name' => 'flux:chart', 'group' => 'Data', 'status' => 'Pro', 'usage' => '41'],
-        ['name' => 'flux:kanban', 'group' => 'Data', 'status' => 'Pro', 'usage' => '18'],
+        ['name' => 'flux:button', 'group' => 'Actions', 'tier' => 'Free', 'usage' => 482],
+        ['name' => 'flux:select', 'group' => 'Forms', 'tier' => 'Free', 'usage' => 317],
+        ['name' => 'flux:date-picker', 'group' => 'Forms', 'tier' => 'Pro', 'usage' => 96],
+        ['name' => 'flux:modal', 'group' => 'Overlays', 'tier' => 'Free', 'usage' => 254],
+        ['name' => 'flux:chart', 'group' => 'Data', 'tier' => 'Pro', 'usage' => 41],
+        ['name' => 'flux:kanban', 'group' => 'Data', 'tier' => 'Pro', 'usage' => 18],
+        ['name' => 'flux:editor', 'group' => 'Forms', 'tier' => 'Pro', 'usage' => 64],
+        ['name' => 'flux:phone', 'group' => 'Forms', 'tier' => 'Pro', 'usage' => 27],
     ];
 
     public string $search = '';
     public string $statusFilter = 'all';
+    public string $tableSearch = '';
+    public string $sortField = 'usage';
+    public string $sortDirection = 'desc';
+
     public array $chartSeries = [
         ['label' => 'Jan', 'usage' => 120],
         ['label' => 'Feb', 'usage' => 180],
@@ -26,8 +32,10 @@ new #[Title('Data Display')] class extends Component {
     ];
 
     public string $tab = 'overview';
+    public string $tabVariant = 'one';
+    public string $tabFindable = 'overview';
     public string $accordion = 'one';
-    public int $slide = 0;
+    public string $accordionOne = '';
 
     public function getFilteredRowsProperty(): array
     {
@@ -36,7 +44,7 @@ new #[Title('Data Display')] class extends Component {
                 || str_contains(strtolower($row['name']), strtolower($this->search));
 
             $matchesStatus = $this->statusFilter === 'all'
-                || $row['status'] === $this->statusFilter;
+                || $row['tier'] === $this->statusFilter;
 
             return $matchesSearch && $matchesStatus;
         }));
@@ -52,45 +60,64 @@ new #[Title('Data Display')] class extends Component {
             ['path' => request()->url()],
         );
     }
+
+    public function getSortedRowsProperty(): array
+    {
+        // The page-level search narrows both tables; tableSearch narrows this one further.
+        $rows = array_values(array_filter($this->rows, function (array $row): bool {
+            return str_contains(strtolower($row['name']), strtolower($this->search))
+                && ($this->tableSearch === ''
+                    || str_contains(strtolower($row['name']), strtolower($this->tableSearch)));
+        }));
+
+        usort($rows, function (array $a, array $b): int {
+            $result = $this->sortField === 'name'
+                ? strcasecmp($a['name'], $b['name'])
+                : $a['usage'] <=> $b['usage'];
+
+            return $this->sortDirection === 'asc' ? $result : -$result;
+        });
+
+        return $rows;
+    }
+
+    public function sortBy(string $field): void
+    {
+        if ($this->sortField === $field) {
+            $this->sortDirection = $this->sortDirection === 'asc' ? 'desc' : 'asc';
+
+            return;
+        }
+
+        $this->sortField = $field;
+        $this->sortDirection = 'asc';
+    }
 }; ?>
 
     <div class="flex w-full flex-1 flex-col gap-8">
+        <x-lab.section heading="Cards"
+                      subheading="The workhorse container, in every band treatment.">
+            <x-lab.example src="lab.examples.data.cards"
+                           title="Card variants"
+                           subheading="default, separated, soft and filled — with card.header, card.body and card.footer." />
+
+            <x-lab.example src="lab.examples.data.card-parts"
+                           title="Card parts"
+                           subheading="heading, subheading, actions, bleed and body used standalone, plus size and highlight." />
+        </x-lab.section>
+
         <x-lab.section heading="Tabs"
                       subheading="Tab group with panels, from Flux Pro.">
-            <flux:tab.group wire:model="tab">
-                <flux:tabs variant="pills">
-                    <flux:tab name="overview" icon="squares-2x2">Overview</flux:tab>
-                    <flux:tab name="activity" icon="bolt">Activity</flux:tab>
-                    <flux:tab name="settings" icon="cog">Settings</flux:tab>
-                </flux:tabs>
-
-                <div class="mt-4">
-                    <flux:tab.panel name="overview">
-                        <flux:text>Overview panel — component counts, usage and ownership at a glance.</flux:text>
-                    </flux:tab.panel>
-                    <flux:tab.panel name="activity">
-                        <flux:text>Activity panel — recent changes and publish events.</flux:text>
-                    </flux:tab.panel>
-                    <flux:tab.panel name="settings">
-                        <flux:text>Settings panel — per-component configuration.</flux:text>
-                    </flux:tab.panel>
-                </div>
-            </flux:tab.group>
+            <x-lab.example src="lab.examples.data.tabs"
+                           title="Tab variants and findable"
+                           subheading="tabs takes size, variant and scrollable; tab.group findable adds type-to-jump navigation." />
         </x-lab.section>
 
         <x-lab.section heading="Accordion"
                       subheading="Disclosure group, from Flux Pro.">
-            <flux:accordion wire:model="accordion">
-                <flux:accordion.item heading="What is Flux?">
-                    <flux:text size="sm">The official UI component library for Livewire.</flux:text>
-                </flux:accordion.item>
-                <flux:accordion.item heading="What is Flux Pro?">
-                    <flux:text size="sm">The commercial tier with advanced components such as the chart, date picker, editor and kanban.</flux:text>
-                </flux:accordion.item>
-                <flux:accordion.item heading="How do I customize a component?">
-                    <flux:text size="sm">Publish its Blade view with <code class="rounded bg-zinc-100 px-1 dark:bg-white/10">php artisan flux:publish &lt;component&gt;</code> and edit the copy.</flux:text>
-                </flux:accordion.item>
-            </flux:accordion>
+            <x-lab.example src="lab.examples.data.accordion"
+                           title="Variants and composed parts"
+                           subheading="transition, expanded and disabled, plus accordion.heading, accordion.icon and accordion.content." />
         </x-lab.section>
 
         <x-lab.section heading="Table"
@@ -98,9 +125,9 @@ new #[Title('Data Display')] class extends Component {
             <div class="grid gap-4 md:grid-cols-2">
                 <flux:input wire:model.live="search" label="Search" icon="magnifying-glass"
                             placeholder="flux:button" />
-                <flux:select wire:model.live="statusFilter" label="Status">
+                <flux:select wire:model.live="statusFilter" label="Tier">
                     <flux:select.option value="all">All</flux:select.option>
-                    <flux:select.option value="Stable">Stable</flux:select.option>
+                    <flux:select.option value="Free">Free</flux:select.option>
                     <flux:select.option value="Pro">Pro</flux:select.option>
                 </flux:select>
             </div>
@@ -110,7 +137,7 @@ new #[Title('Data Display')] class extends Component {
                     <flux:table.columns>
                         <flux:table.column>Component</flux:table.column>
                         <flux:table.column>Group</flux:table.column>
-                        <flux:table.column>Status</flux:table.column>
+                        <flux:table.column>Tier</flux:table.column>
                         <flux:table.column align="end">Usages</flux:table.column>
                     </flux:table.columns>
 
@@ -120,8 +147,8 @@ new #[Title('Data Display')] class extends Component {
                                 <flux:table.cell class="font-medium">{{ $row['name'] }}</flux:table.cell>
                                 <flux:table.cell>{{ $row['group'] }}</flux:table.cell>
                                 <flux:table.cell>
-                                    <flux:badge size="sm" :color="$row['status'] === 'Pro' ? 'amber' : 'green'">
-                                        {{ $row['status'] }}
+                                    <flux:badge size="sm" :color="$row['tier'] === 'Pro' ? 'amber' : 'green'">
+                                        {{ $row['tier'] }}
                                     </flux:badge>
                                 </flux:table.cell>
                                 <flux:table.cell class="tabular-nums text-end">{{ $row['usage'] }}</flux:table.cell>
@@ -136,14 +163,24 @@ new #[Title('Data Display')] class extends Component {
             </div>
         </x-lab.section>
 
+        <x-lab.section heading="Sortable table"
+                      subheading="table.column sortable wired to a real sort, with its own search.">
+            <x-lab.example :data="['sortField' => $sortField, 'sortDirection' => $sortDirection]"
+                           src="lab.examples.data.table-sortable"
+                           title="Sortable columns"
+                           subheading="Click a sortable column header to flip the direction; the sorted order is reported underneath." />
+        </x-lab.section>
+
         <x-lab.section heading="Pagination, progress & skeleton"
                       subheading="Compact feedback primitives.">
             <flux:progress value="65" class="max-w-md">65% of the library documented</flux:progress>
 
             <div class="flex max-w-md flex-col gap-2">
-                <flux:skeleton class="h-4 w-3/4" />
-                <flux:skeleton class="h-4 w-1/2" />
-                <flux:skeleton class="h-4 w-2/3" />
+                <flux:skeleton.group class="flex flex-col gap-2">
+                    <flux:skeleton.line class="h-4 w-3/4" />
+                    <flux:skeleton.line class="h-4 w-1/2" />
+                    <flux:skeleton.line class="h-4 w-2/3" />
+                </flux:skeleton.group>
             </div>
 
             <div class="max-w-md">
@@ -153,31 +190,55 @@ new #[Title('Data Display')] class extends Component {
 
         <x-lab.section heading="Timeline"
                       subheading="Chronological status feed, from Flux Pro.">
-            <flux:timeline>
-                <flux:timeline.item status="complete" title="Project scaffolded">
-                    <flux:text size="sm">Laravel 13 with the Livewire Starter Kit.</flux:text>
-                </flux:timeline.item>
-                <flux:timeline.item status="complete" title="Flux Pro activated">
-                    <flux:text size="sm">License applied via <code class="rounded bg-zinc-100 px-1 dark:bg-white/10">flux:activate</code>.</flux:text>
-                </flux:timeline.item>
-                <flux:timeline.item title="Catalog pages in progress">
-                    <flux:text size="sm">Iterating on component coverage.</flux:text>
-                </flux:timeline.item>
-            </flux:timeline>
+            <x-lab.example src="lab.examples.data.timeline"
+                           title="Orientation and parts"
+                           subheading="vertical and horizontal, the four status values, indicator variants, and the block + subgrid shape for full-width children." />
+        </x-lab.section>
+
+        <x-lab.section heading="Nav lists"
+                      subheading="Vertical navigation, as used in settings and the lab sidebar.">
+            <div class="max-w-xs">
+                <flux:navlist aria-label="Example navlist">
+                    <flux:navlist.group heading="Components">
+                        <flux:navlist.item :href="route('components.forms')" wire:navigate icon="cursor-arrow-rays">
+                            Forms &amp; Inputs
+                            <flux:navlist.badge size="sm">12</flux:navlist.badge>
+                        </flux:navlist.item>
+                        <flux:navlist.item :href="route('components.data')" wire:navigate icon="table-cells">
+                            Data Display
+                        </flux:navlist.item>
+                    </flux:navlist.group>
+
+                    <flux:navlist.group heading="Pro" expandable>
+                        <flux:navlist.item :href="route('components.editor')" wire:navigate icon="chat-bubble-oval-left">
+                            Editor
+                            <flux:navlist.badge size="sm" color="amber">Pro</flux:navlist.badge>
+                        </flux:navlist.item>
+                        <flux:navlist.item :href="route('components.charts')" wire:navigate icon="chart-bar">
+                            Charts
+                        </flux:navlist.item>
+                    </flux:navlist.group>
+                </flux:navlist>
+            </div>
         </x-lab.section>
 
         <x-lab.section heading="Chart"
-                      subheading="Pro charting component rendering a static series.">
+                      subheading="A first taste — the charts page covers the whole family.">
             <flux:chart :value="$chartSeries" class="h-64 max-w-2xl">
-                <flux:chart.viewport>
-                    <flux:chart.line field="usage" label="Component usage" />
+                <flux:chart.svg>
+                    <flux:chart.line field="usage" class="text-blue-500" />
                     <flux:chart.axis axis="x" field="label" />
-                    <flux:chart.axis axis="y" field="usage" />
-                    <flux:chart.tooltip>
-                        <flux:chart.tooltip.heading field="label" />
-                        <flux:chart.tooltip.value field="usage" label="Usages" />
-                    </flux:chart.tooltip>
-                </flux:chart.viewport>
+                    <flux:chart.axis axis="y" />
+                </flux:chart.svg>
+
+                <flux:chart.tooltip>
+                    <flux:chart.tooltip.heading field="label" />
+                    <flux:chart.tooltip.value field="usage" label="Usages" />
+                </flux:chart.tooltip>
             </flux:chart>
+
+            <flux:button size="sm" variant="subtle" href="{{ route('components.charts') }}" wire:navigate class="self-start">
+                Open the charts page
+            </flux:button>
         </x-lab.section>
     </div>

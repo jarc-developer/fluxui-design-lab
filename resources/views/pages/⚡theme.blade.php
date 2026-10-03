@@ -36,15 +36,16 @@ new #[Title('Theme & Tokens')] class extends Component {
     <div class="flex w-full flex-1 flex-col gap-8">
         <x-lab.section heading="Appearance"
                       subheading="Drives Flux's appearance, mirrored by the account setting.">
-            <flux:radio.group x-data variant="segmented" x-model="$flux.appearance">
-                <flux:radio value="light" icon="sun">Light</flux:radio>
-                <flux:radio value="dark" icon="moon">Dark</flux:radio>
-                <flux:radio value="system" icon="computer-desktop">System</flux:radio>
-            </flux:radio.group>
+            <x-lab.example src="lab.examples.theme.appearance"
+                           title="Light, dark and system"
+                           subheading="radio.group bound to $flux.appearance, which writes to local storage and applies the dark class for you." />
         </x-lab.section>
 
         <x-lab.section heading="Accent colour"
                       subheading="Set the Flux accent used by buttons, links and focus rings.">
+            <x-lab.example src="lab.examples.theme.accent-picker"
+                           title="The same picker in three formats"
+                           subheading="format switches between hex, rgb and oklch; copyable and clearable add their own controls, and swatches gives a preset row." />
             <div class="grid gap-4 md:grid-cols-2">
                 <flux:color-picker wire:model="accent" label="Accent" format="hex" copyable />
                 <div class="flex items-center gap-2">

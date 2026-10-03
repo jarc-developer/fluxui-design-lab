@@ -29,21 +29,60 @@ new #[Title('Layout Patterns')] class extends Component {
                     <flux:text size="sm">Check each state in light, dark and at every breakpoint.</flux:text>
                 </flux:card>
             </div>
+
+            <x-lab.example src="lab.examples.data.cards"
+                           title="Card variants"
+                           subheading="The full band treatment set, shared with the data page." />
+        </x-lab.section>
+
+        <x-lab.section heading="Shell primitives"
+                      subheading="The building blocks the app shell itself is made of.">
+            <x-lab.example src="lab.examples.layouts.shell"
+                           title="container, aside, header, footer and brand"
+                           subheading="Each one is a thin semantic wrapper that exists so the layout is consistent, not to carry styles." />
+
+            <x-lab.example src="lab.examples.layouts.accent"
+                           title="Accent"
+                           subheading="flux:accent scopes the accent custom properties to one subtree, so a single region of a page can use a different accent from the rest." />
         </x-lab.section>
 
         <x-lab.section heading="Nav lists"
                       subheading="Vertical navigation, as used in settings and the lab sidebar.">
             <div class="max-w-xs">
                 <flux:navlist aria-label="Example navlist">
-                    <flux:navlist.item :href="route('dashboard')" wire:navigate>Dashboard</flux:navlist.item>
-                    <flux:navlist.item :href="route('components.forms')" wire:navigate>Forms &amp; Inputs</flux:navlist.item>
-                    <flux:navlist.item :href="route('components.actions')" wire:navigate>Actions</flux:navlist.item>
-                    <flux:navlist.item :href="route('components.data')" wire:navigate>Data Display</flux:navlist.item>
-                    <flux:navlist.item :href="route('components.overlays')" wire:navigate>Overlays</flux:navlist.item>
-                    <flux:navlist.item :href="route('theme')" wire:navigate>Theme &amp; Tokens</flux:navlist.item>
-                    <flux:navlist.item :href="route('layouts')" wire:navigate>Layout Patterns</flux:navlist.item>
+                    <flux:navlist.group heading="Pages">
+                        <flux:navlist.item :href="route('dashboard')" wire:navigate icon="home">Dashboard</flux:navlist.item>
+                        <flux:navlist.item :href="route('components.forms')" wire:navigate icon="cursor-arrow-rays">
+                            Forms &amp; Inputs
+                            <flux:navlist.badge size="sm">8</flux:navlist.badge>
+                        </flux:navlist.item>
+                        <flux:navlist.item :href="route('components.overlays')" wire:navigate icon="arrows-pointing-out">
+                            Overlays
+                        </flux:navlist.item>
+                    </flux:navlist.group>
+
+                    <flux:navlist.group heading="Pro" expandable>
+                        <flux:navlist.item :href="route('components.kanban')" wire:navigate icon="rectangle-stack">
+                            Kanban
+                            <flux:navlist.badge size="sm" color="amber">Pro</flux:navlist.badge>
+                        </flux:navlist.item>
+                        <flux:navlist.item :href="route('components.carousel')" wire:navigate icon="photo">
+                            Carousel
+                        </flux:navlist.item>
+                    </flux:navlist.group>
                 </flux:navlist>
             </div>
+        </x-lab.section>
+
+        <x-lab.section heading="Navbar & navmenu"
+                      subheading="Horizontal navigation and a vertical menu surface.">
+            <x-lab.example src="lab.examples.actions.navbar"
+                           title="navbar"
+                           subheading="Horizontal navigation with current state, icons, badges and a scrollable variant." />
+
+            <x-lab.example src="lab.examples.actions.navmenu"
+                           title="navmenu"
+                           subheading="A menu surface for dropdown-like panels." />
         </x-lab.section>
 
         <x-lab.section heading="Separators & spacers"

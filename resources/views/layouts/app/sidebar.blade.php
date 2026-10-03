@@ -32,6 +32,30 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
 
+                <flux:sidebar.group :heading="__('Pro Components')" class="grid">
+                    <flux:sidebar.item icon="chat-bubble-oval-left" :href="route('components.editor')" :current="request()->routeIs('components.editor')" wire:navigate>
+                        {{ __('Editor') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="beaker" :href="route('components.composer')" :current="request()->routeIs('components.composer')" wire:navigate>
+                        {{ __('Composer') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="rectangle-stack" :href="route('components.kanban')" :current="request()->routeIs('components.kanban')" wire:navigate>
+                        {{ __('Kanban') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="photo" :href="route('components.carousel')" :current="request()->routeIs('components.carousel')" wire:navigate>
+                        {{ __('Carousel') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="device-phone-mobile" :href="route('components.phone')" :current="request()->routeIs('components.phone')" wire:navigate>
+                        {{ __('Phone') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="calendar-days" :href="route('components.calendar')" :current="request()->routeIs('components.calendar')" wire:navigate>
+                        {{ __('Calendar') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="chart-bar" :href="route('components.charts')" :current="request()->routeIs('components.charts')" wire:navigate>
+                        {{ __('Charts') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+
                 <flux:sidebar.group :heading="__('Foundations')" class="grid">
                     <flux:sidebar.item icon="swatch" :href="route('theme')" :current="request()->routeIs('theme')" wire:navigate>
                         {{ __('Theme & Tokens') }}

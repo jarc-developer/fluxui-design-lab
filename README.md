@@ -57,12 +57,43 @@ docker compose exec app php artisan flux:publish <component>   # customise one c
 | `/components/actions` | buttons, menus, command palette, popovers, badges, icons |
 | `/components/data` | tabs, accordion, live-filtered table, timeline, chart |
 | `/components/overlays` | modals, toasts, callouts, tooltips |
+| `/components/editor` | `flux:editor` and every toolbar control (Pro) |
+| `/components/composer` | `flux:composer` and its slots (Pro) |
+| `/components/kanban` | `flux:kanban` columns, headers and cards (Pro) |
+| `/components/carousel` | `flux:carousel` slides, arrows, indicators (Pro) |
+| `/components/phone` | `flux:phone` country and number input (Pro) |
+| `/components/calendar` | `flux:calendar` month view, compared to `flux:date-picker` (Pro) |
+| `/components/charts` | the whole `flux:chart` family — series, axes, legend, tooltip (Pro) |
 | `/theme` | appearance, accent, palette, radius, type scale, spacing |
 | `/layouts` | cards, nav lists, separators, auth shells, shell anatomy |
 
 Pages live in `resources/views/pages/` and are wrapped automatically by
 `<x-layouts::app>` through Livewire's `component_layout` config — do **not** add the layout
 wrapper yourself or the component will render multiple root elements.
+
+## How examples are written
+
+Every example on a catalog page is a **fragment** under `resources/views/lab/examples/<family>/`,
+rendered through the `x-lab.example` helper:
+
+```blade
+<x-lab.example src="lab.examples.forms.input-group"
+               title="Input groups"
+               subheading="Weld several controls into one field." />
+```
+
+`x-lab.example` renders the fragment as a live preview **and** reads the same file from disk to
+show its source underneath with a copy button. One file, so the snippet can never drift from the
+markup that produced it. A couple of rules follow from that:
+
+- **Put the markup in the fragment, not inline in the page.** Inline markup gets no snippet.
+- **Anonymous components have their own scope**, so a fragment cannot see the page's properties.
+  Anything it needs goes through the `data` prop:
+  `<x-lab.example :data="['usage' => $usage]" src="lab.examples.charts.axes" />`.
+- Use `snippet="false"` for chrome that is not a component demo (loops, readouts).
+- Fragments live under `resources/views/`, which Tailwind's `@source '../views'` already scans.
+  If you ever move example markup into PHP under `app/`, add `@source '../../app'` or the utility
+  classes will silently disappear.
 
 ## Notes
 
@@ -77,3 +108,15 @@ wrapper yourself or the component will render multiple root elements.
   survive an image rebuild.
 - **Lockfiles are committed** (`composer.lock`, `package-lock.json`) so the verified Flux and
   Livewire versions are reproducible. This differs from the sibling projects, which ignore them.
+- **Livewire's multi-root-element warning is switched off** in
+  `AppServiceProvider::disableLivewireRootElementHeuristic()`. It re-parses the mount-stage HTML
+  with libxml2, which mis-nests the markup Flux's Blaze components emit, so any page combining
+  `flux:editor` or `flux:phone` with other content is wrongly reported as having two roots. The
+  check is debug-only diagnostics and is removed defensively if Livewire's internals change.
+- **`flux:editor` and `flux:phone` pages hydrate on the client.** Blaze defers content built
+  entirely from Blaze components, so those two routes ship only the shell in the initial HTML.
+  The test suite therefore asserts their contents against the rendered Livewire component rather
+  than the raw HTTP response.
+- **The icon gallery paints a window.** It searches all 321 icons but renders at most 96 per
+  request; resolving every icon in one pass exhausts the PHP memory limit.
+

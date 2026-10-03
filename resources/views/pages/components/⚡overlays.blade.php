@@ -92,20 +92,17 @@ new #[Title('Overlays & Feedback')] class extends Component {
                     </x-slot>
                 </div>
             </flux:modal>
+
+            <x-lab.example src="lab.examples.overlays.modal-triggers"
+                           title="Declarative modals"
+                           subheading="Instead of a wire:model boolean, name the modal and drive it with flux:modal.trigger. flux:modal.close dismisses from wherever you place it." />
         </x-lab.section>
 
         <x-lab.section heading="Toasts"
                       subheading="Dispatch a toast from any Livewire action.">
-            <div class="flex flex-wrap items-center gap-2">
-                <flux:button wire:click="$dispatch('toast', type: 'success', title: 'Success', description: 'Everything worked.')"
-                             color="green" variant="subtle">Success</flux:button>
-                <flux:button wire:click="$dispatch('toast', type: 'danger', title: 'Error', description: 'Something failed.')"
-                             color="red" variant="subtle">Error</flux:button>
-                <flux:button wire:click="$dispatch('toast', type: 'warning', title: 'Warning', description: 'Check the input.')"
-                             color="amber" variant="subtle">Warning</flux:button>
-                <flux:button wire:click="$dispatch('toast', type: 'info', title: 'Info', description: 'FYI only.')"
-                             variant="subtle">Info</flux:button>
-            </div>
+            <x-lab.example src="lab.examples.overlays.toasts"
+                           title="Toast types"
+                           subheading="success, danger, warning and info. The group and the live region are already mounted in the app layout." />
         </x-lab.section>
 
         <x-lab.section heading="Callouts"
@@ -125,19 +122,8 @@ new #[Title('Overlays & Feedback')] class extends Component {
 
         <x-lab.section heading="Tooltip & popover"
                       subheading="Anchored contextual surfaces.">
-            <div class="flex flex-wrap items-center gap-2">
-                <flux:tooltip content="Shortcut: ⌘K" kbd position="top">
-                    <flux:button variant="subtle">Hover for a shortcut hint</flux:button>
-                </flux:tooltip>
-
-                <flux:button class="relative" x-data="{ show: false }" x-on:click="show = ! show"
-                             variant="subtle" icon-trailing="chevron-up">
-                    Popover
-                    <flux:popover x-show="show" x-cloak x-transition class="absolute z-10 w-64">
-                        <flux:heading size="sm">Anchored panel</flux:heading>
-                        <flux:text size="sm" class="mt-1">For richer content than a tooltip can hold.</flux:text>
-                    </flux:popover>
-                </flux:button>
-            </div>
+            <x-lab.example src="lab.examples.actions.popover"
+                           title="flux:context + flux:popover"
+                           subheading="The corrected pairing — a context anchors and toggles a popover, rather than driving it with Alpine." />
         </x-lab.section>
     </div>

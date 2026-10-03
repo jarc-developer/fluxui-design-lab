@@ -1,12 +1,72 @@
 <?php
 
+use Illuminate\Support\Facades\File;
 use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Actions & Navigation')] class extends Component {
+    /**
+     * How many icons to paint at once. The full set is a few hundred SVGs, and
+     * resolving every one of them in a single request exhausts the memory limit,
+     * so the gallery paints a window and the filter searches the whole set.
+     */
+    public int $iconLimit = 96;
+
+    public string $iconSearch = '';
+
     public function notify(): void
     {
         $this->dispatch('toast', type: 'success', title: 'Saved', description: 'The lab state was updated.');
+    }
+
+    /**
+     * Every icon that ships with Flux, plus any this app adds, discovered from disk
+     * so the gallery cannot drift from the installed packages.
+     *
+     * @return array<int, string>
+     */
+    public function getIconNamesProperty(): array
+    {
+        $directories = [
+            base_path('vendor/livewire/flux/stubs/resources/views/flux/icon'),
+            resource_path('views/flux/icon'),
+        ];
+
+        $names = [];
+
+        foreach ($directories as $directory) {
+            if (! File::isDirectory($directory)) {
+                continue;
+            }
+
+            foreach (File::glob($directory.'/*.blade.php') as $path) {
+                $name = basename($path, '.blade.php');
+
+                if ($name !== 'index') {
+                    $names[] = $name;
+                }
+            }
+        }
+
+        $names = array_values(array_unique($names));
+        sort($names);
+
+        return $names;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function getFilteredIconsProperty(): array
+    {
+        if ($this->iconSearch === '') {
+            return $this->iconNames;
+        }
+
+        return array_values(array_filter(
+            $this->iconNames,
+            fn (string $name): bool => str_contains($name, strtolower($this->iconSearch)),
+        ));
     }
 }; ?>
 
@@ -35,7 +95,12 @@ new #[Title('Actions & Navigation')] class extends Component {
                 <flux:button wire:click="notify" icon="check" variant="subtle">Toast</flux:button>
                 <flux:button loading wire:click="$sleep(3000)">Loading</flux:button>
                 <flux:button disabled>Disabled</flux:button>
+                <flux:button href="{{ route('layouts') }}" wire:navigate>As a link</flux:button>
             </div>
+
+            <x-lab.example src="lab.examples.actions.button-group"
+                           title="Button groups"
+                           subheading="Weld related controls into a single segmented control, and nest one group inside another." />
         </x-lab.section>
 
         <x-lab.section heading="Menus & dropdowns"
@@ -59,56 +124,84 @@ new #[Title('Actions & Navigation')] class extends Component {
                         <flux:menu.item href="#" variant="danger">Sign out</flux:menu.item>
                     </flux:menu>
                 </flux:dropdown>
-
-                <flux:command icon="magnifying-glass" placeholder="Search components…">
-                    <flux:command.items>
-                        <flux:command.item icon="rectangle-group">Buttons</flux:command.item>
-                        <flux:command.item icon="rectangle-group">Selects</flux:command.item>
-                        <flux:command.item icon="rectangle-group">Modals</flux:command.item>
-                        <flux:command.item icon="rectangle-group">Tables</flux:command.item>
-                    </flux:command.items>
-                </flux:command>
             </div>
+
+            <x-lab.example src="lab.examples.actions.command"
+                           title="Command palette"
+                           subheading="The default composition, then the same palette with a hand-composed command.input, grouped items and a command.empty state." />
+        </x-lab.section>
+
+        <x-lab.section heading="Navigation"
+                      subheading="navbar for horizontal navigation, navmenu for a vertical menu surface, and breadcrumbs for a trail.">
+            <x-lab.example src="lab.examples.actions.navbar"
+                           title="navbar"
+                           subheading="Items with current state, icons, badges and a scrollable variant for narrow viewports." />
+
+            <x-lab.example src="lab.examples.actions.navmenu"
+                           title="navmenu"
+                           subheading="A menu surface for dropdown-like panels, with separators, a primary variant, kbd hints, disabled and indented items." />
+
+            <x-lab.example src="lab.examples.actions.breadcrumbs"
+                           title="breadcrumbs"
+                           subheading="A trail of ancestors, with icons and a custom separator." />
         </x-lab.section>
 
         <x-lab.section heading="Popovers & tooltips"
                       subheading="Lightweight contextual surfaces.">
-            <div class="flex flex-wrap items-center gap-2">
-                <flux:tooltip>
-                    <flux:button variant="subtle">Hover me</flux:button>
-                    <flux:tooltip.content>Explains the button.</flux:tooltip.content>
-                </flux:tooltip>
+            <x-lab.example src="lab.examples.actions.popover"
+                           title="flux:context + flux:popover"
+                           subheading="flux:popover is a positioned surface, not a controller. flux:context anchors it, and the pair is toggled by a click anywhere in the context." />
 
-                <flux:button class="relative" x-data="{ show: false }" x-on:click="show = ! show"
-                             icon-trailing="chevron-up">
-                    Popover
-                    <flux:popover x-show="show" x-cloak x-transition class="absolute z-10 w-64">
-                        <flux:heading size="sm">Popover content</flux:heading>
-                        <flux:text size="sm" class="mt-1">Anchored panel for richer content than a tooltip.</flux:text>
-                    </flux:popover>
-                </flux:button>
+            <x-lab.example src="lab.examples.actions.tooltips"
+                           title="Tooltip variants"
+                           subheading="Position, kbd hints, toggleable pinning and interactive hover targets." />
+        </x-lab.section>
+
+        <x-lab.section heading="Badges, flags, avatars & callouts"
+                      subheading="Compact status and identity primitives.">
+            <x-lab.example src="lab.examples.actions.avatars-badges"
+                           title="Avatars, badges and profiles"
+                           subheading="Avatars derive initials from a name, avatar.group stacks them, and profile pairs an avatar with a name." />
+
+            <x-lab.example src="lab.examples.actions.callouts"
+                           title="Callout parts"
+                           subheading="heading, text, link and a free action area, on top of the success, danger and secondary variants." />
+
+            <div class="flex flex-wrap items-center gap-2">
+                <flux:flag square color="zinc">DL</flux:flag>
+                <flux:flag color="zinc">Laravel</flux:flag>
+                <flux:flag color="red" variant="outline">Pro</flux:flag>
             </div>
         </x-lab.section>
 
-        <x-lab.section heading="Badges, flags & icons"
-                      subheading="Compact status and identity primitives.">
-            <div class="flex flex-wrap items-center gap-2">
-                <flux:badge color="green">Shipped</flux:badge>
-                <flux:badge color="red">Deprecated</flux:badge>
-                <flux:badge color="amber" variant="solid" size="sm">Beta</flux:badge>
-                <flux:flag square color="zinc">DL</flux:flag>
-                <flux:flag color="zinc">Laravel</flux:flag>
+        <x-lab.section heading="Icons"
+                      subheading="Every icon that ships with Flux, discovered from the installed package plus this app's own additions.">
+            <div class="flex items-center gap-2">
+                <flux:input wire:model.live="iconSearch" label="Filter icons"
+                            icon="magnifying-glass" placeholder="calendar, user, arrow…"
+                            class="max-w-sm" />
             </div>
 
-            <div class="flex flex-wrap items-center gap-2 text-zinc-500 dark:text-zinc-400">
-                <flux:icon name="home" class="size-5" />
-                <flux:icon name="user" class="size-5" />
-                <flux:icon name="cog" class="size-5" />
-                <flux:icon name="star" class="size-5" />
-                <flux:icon name="heart" class="size-5" />
-                <flux:icon name="bell" class="size-5" />
-                <flux:icon name="calendar" class="size-5" />
-                <flux:icon name="envelope" class="size-5" />
+            <div class="flex items-center gap-2">
+                <flux:text size="sm" class="text-zinc-500">
+                    {{ count($this->filteredIcons) }} match{{ count($this->filteredIcons) === 1 ? 'es' : '' }} —
+                    painting the first {{ min($iconLimit, count($this->filteredIcons)) }} of {{ count($this->iconNames) }} icons
+                </flux:text>
             </div>
+
+            <div class="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10">
+                @foreach (array_slice($this->filteredIcons, 0, $iconLimit) as $icon)
+                    <div class="flex flex-col items-center gap-1 rounded-lg p-2 hover:bg-zinc-50 dark:hover:bg-white/5"
+                         title="{{ $icon }}">
+                        <flux:icon :name="$icon" class="size-5 text-zinc-600 dark:text-zinc-300" />
+
+                        <flux:text size="xs" class="w-full truncate text-center text-zinc-400">{{ $icon }}</flux:text>
+                    </div>
+                @endforeach
+            </div>
+
+            @if ($this->filteredIcons === [])
+                <flux:text size="sm" class="text-zinc-500">No icon matches “{{ $iconSearch }}”.</flux:text>
+            @endif
         </x-lab.section>
     </div>
