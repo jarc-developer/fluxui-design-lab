@@ -30,6 +30,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Design lab — tokens and patterns
     Route::livewire('theme', 'pages::theme')->name('theme');
+    Route::livewire('theme/generator', 'pages::theme-generator')->name('theme.generator');
     Route::livewire('layouts', 'pages::layouts')->name('layouts');
 });
 

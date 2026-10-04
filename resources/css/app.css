@@ -26,6 +26,14 @@
     --color-accent: var(--color-neutral-800);
     --color-accent-content: var(--color-neutral-800);
     --color-accent-foreground: var(--color-white);
+
+    /* "Selector" radius (checkboxes) for the theme generator. Flux's indicator uses
+       a fixed rounded-[.3rem], so it is re-pointed at this token below. */
+    --radius-selector: 0.3rem;
+}
+
+[data-flux-checkbox-indicator] {
+    border-radius: var(--radius-selector, 0.3rem);
 }
 
 @layer theme {

@@ -60,6 +60,9 @@
                     <flux:sidebar.item icon="swatch" :href="route('theme')" :current="request()->routeIs('theme')" wire:navigate>
                         {{ __('Theme & Tokens') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="paint-brush" :href="route('theme.generator')" :current="request()->routeIs('theme.generator')" wire:navigate>
+                        {{ __('Theme Generator') }}
+                    </flux:sidebar.item>
                     <flux:sidebar.item icon="rectangle-group" :href="route('layouts')" :current="request()->routeIs('layouts')" wire:navigate>
                         {{ __('Layout Patterns') }}
                     </flux:sidebar.item>
