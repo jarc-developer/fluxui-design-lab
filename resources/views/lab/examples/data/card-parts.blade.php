@@ -21,25 +21,27 @@
         </flux:text>
     </flux:card>
 
-    <flux:card class="gap-0 overflow-hidden">
-        <flux:card.bleed>
-            <div class="grid h-24 place-items-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-                <flux:text class="font-semibold">card.bleed</flux:text>
-            </div>
-        </flux:card.bleed>
-
+    <flux:card body="inset">
         <flux:card.body>
-            <flux:text size="sm">Bleed removes the inset so media runs to the card edges.</flux:text>
+            <flux:card.bleed>
+                <div class="grid h-24 place-items-center bg-gradient-to-br from-indigo-500 to-purple-600 text-white rounded-t-[calc(var(--flux-card-radius)-1px)]">
+                    <flux:text class="font-semibold text-white">flux:card.bleed</flux:text>
+                </div>
+            </flux:card.bleed>
+
+            <flux:text size="sm" class="pt-3">Bleed extends media to the card edges automatically.</flux:text>
         </flux:card.body>
     </flux:card>
 
     <flux:card size="sm" :highlight="false">
         <flux:card.header>
-            <flux:card.heading size="sm">Small, no highlight</flux:card.heading>
+            <flux:card.heading>Small, no highlight</flux:card.heading>
+            <flux:card.subheading>size="sm" :highlight="false"</flux:card.subheading>
         </flux:card.header>
 
         <flux:card.body>
-            <flux:text size="sm">size and highlight are both card props.</flux:text>
+            <flux:text size="sm">size scales padding and highlight controls edge shine.</flux:text>
         </flux:card.body>
     </flux:card>
 </div>
+

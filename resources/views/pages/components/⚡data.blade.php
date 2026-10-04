@@ -98,8 +98,8 @@ new #[Title('Data Display')] class extends Component {
         <x-lab.section heading="Cards"
                       subheading="The workhorse container, in every band treatment.">
             <x-lab.example src="lab.examples.data.cards"
-                           title="Card variants"
-                           subheading="default, separated, soft and filled — with card.header, card.body and card.footer." />
+                           title="Card treatments and surfaces"
+                           subheading="divided, separated, inset, soft and filled — with card.header, card.body and card.footer." />
 
             <x-lab.example src="lab.examples.data.card-parts"
                            title="Card parts"
@@ -117,7 +117,7 @@ new #[Title('Data Display')] class extends Component {
                       subheading="Disclosure group, from Flux Pro.">
             <x-lab.example src="lab.examples.data.accordion"
                            title="Variants and composed parts"
-                           subheading="transition, expanded and disabled, plus accordion.heading, accordion.icon and accordion.content." />
+                           subheading="transition, exclusive and reverse variant, plus accordion.heading and accordion.content." />
         </x-lab.section>
 
         <x-lab.section heading="Table"
@@ -143,15 +143,15 @@ new #[Title('Data Display')] class extends Component {
 
                     <flux:table.rows>
                         @forelse ($this->filteredRows as $row)
-                            <flux:table.row>
-                                <flux:table.cell class="font-medium">{{ $row['name'] }}</flux:table.cell>
+                            <flux:table.row :key="$row['name']">
+                                <flux:table.cell variant="strong">{{ $row['name'] }}</flux:table.cell>
                                 <flux:table.cell>{{ $row['group'] }}</flux:table.cell>
                                 <flux:table.cell>
                                     <flux:badge size="sm" :color="$row['tier'] === 'Pro' ? 'amber' : 'green'">
                                         {{ $row['tier'] }}
                                     </flux:badge>
                                 </flux:table.cell>
-                                <flux:table.cell class="tabular-nums text-end">{{ $row['usage'] }}</flux:table.cell>
+                                <flux:table.cell align="end" class="tabular-nums">{{ $row['usage'] }}</flux:table.cell>
                             </flux:table.row>
                         @empty
                             <flux:table.row>
@@ -173,10 +173,19 @@ new #[Title('Data Display')] class extends Component {
 
         <x-lab.section heading="Pagination, progress & skeleton"
                       subheading="Compact feedback primitives.">
-            <flux:progress value="65" class="max-w-md">65% of the library documented</flux:progress>
+            <flux:field class="max-w-md">
+                <flux:label>
+                    Library documentation
+                    <x-slot name="trailing">
+                        <span class="tabular-nums text-xs text-zinc-500">65%</span>
+                    </x-slot>
+                </flux:label>
+                <flux:progress value="65" />
+                <flux:description>65% of the component library documented</flux:description>
+            </flux:field>
 
             <div class="flex max-w-md flex-col gap-2">
-                <flux:skeleton.group class="flex flex-col gap-2">
+                <flux:skeleton.group animate="shimmer" class="flex flex-col gap-2">
                     <flux:skeleton.line class="h-4 w-3/4" />
                     <flux:skeleton.line class="h-4 w-1/2" />
                     <flux:skeleton.line class="h-4 w-2/3" />
@@ -187,6 +196,7 @@ new #[Title('Data Display')] class extends Component {
                 <flux:pagination :paginator="$this->paginator" />
             </div>
         </x-lab.section>
+
 
         <x-lab.section heading="Timeline"
                       subheading="Chronological status feed, from Flux Pro.">

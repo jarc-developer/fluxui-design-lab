@@ -876,4 +876,71 @@ class DesignLabTest extends TestCase
         );
         $this->assertStringContainsString('wire:click="simulateAsyncAction"', $contents);
     }
+
+    public function test_card_examples_use_body_treatments_and_valid_variants(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/data/cards.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:card[^>]*variant=[\'"]separated[\'"]/i', $contents),
+            'separated is a body treatment (body="separated"), not a variant.',
+        );
+        $this->assertStringContainsString('body="separated"', $contents);
+        $this->assertStringContainsString('body="divided"', $contents);
+    }
+
+    public function test_tab_examples_bind_wire_model_on_tabs_not_tab_group(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/data/tabs.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:tab\.group[^>]*wire:model/i', $contents),
+            'wire:model must be bound on <flux:tabs>, not <flux:tab.group>.',
+        );
+        $this->assertTrue(
+            (bool) preg_match('/<flux:tabs[^>]*wire:model=/i', $contents),
+            '<flux:tabs> must bind to wire:model.',
+        );
+        $this->assertStringContainsString('variant="segmented"', $contents);
+    }
+
+    public function test_table_sortable_columns_bind_sorted_and_direction(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/data/table-sortable.blade.php'));
+
+        $this->assertStringContainsString(':sorted="$sortField === \'name\'"', $contents);
+        $this->assertStringContainsString(':direction="$sortDirection"', $contents);
+        $this->assertStringContainsString(':key="$row[\'name\']"', $contents);
+    }
+
+    public function test_accordion_examples_use_valid_flux_attributes(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/data/accordion.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:accordion[^>]*wire:model/i', $contents),
+            'flux:accordion does not support wire:model.',
+        );
+        $this->assertFalse(
+            (bool) preg_match('/<flux:accordion[^>]*variant=[\'"]separated[\'"]/i', $contents),
+            'flux:accordion does not have a separated variant.',
+        );
+        $this->assertFalse(
+            (bool) preg_match('/<flux:accordion\.heading>[\s\S]*?<flux:accordion\.icon/i', $contents),
+            'flux:accordion.heading automatically renders the chevron icon; manual nested icon is redundant.',
+        );
+        $this->assertStringContainsString('exclusive', $contents);
+        $this->assertStringContainsString('variant="reverse"', $contents);
+    }
+
+    public function test_timeline_examples_do_not_use_invalid_small_size(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/data/timeline.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:timeline[^>]*size=[\'"]sm[\'"]/i', $contents),
+            'flux:timeline only supports size="lg" or default; size="sm" is invalid.',
+        );
+        $this->assertStringContainsString('size="lg"', $contents);
+    }
 }

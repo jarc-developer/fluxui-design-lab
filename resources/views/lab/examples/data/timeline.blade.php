@@ -56,7 +56,7 @@
             status drives the indicator — complete, current, incomplete, or nothing at all
         </flux:text>
 
-        <flux:timeline size="sm">
+        <flux:timeline>
             <flux:timeline.item status="complete">
                 <flux:timeline.indicator />
                 <flux:timeline.content>
@@ -89,10 +89,42 @@
 
     <div>
         <flux:text size="xs" class="mb-1 font-medium text-zinc-500">
+            size="lg" — prominent indicators and numbered steps
+        </flux:text>
+
+        <flux:timeline size="lg">
+            <flux:timeline.item status="complete">
+                <flux:timeline.indicator>1</flux:timeline.indicator>
+                <flux:timeline.content>
+                    <flux:heading size="sm">Account setup</flux:heading>
+                    <flux:text size="sm" class="text-zinc-500">Credentials configured.</flux:text>
+                </flux:timeline.content>
+            </flux:timeline.item>
+
+            <flux:timeline.item status="current">
+                <flux:timeline.indicator>2</flux:timeline.indicator>
+                <flux:timeline.content>
+                    <flux:heading size="sm">Verification</flux:heading>
+                    <flux:text size="sm" class="text-zinc-500">Confirm email address.</flux:text>
+                </flux:timeline.content>
+            </flux:timeline.item>
+
+            <flux:timeline.item status="incomplete">
+                <flux:timeline.indicator>3</flux:timeline.indicator>
+                <flux:timeline.content>
+                    <flux:heading size="sm">Launch</flux:heading>
+                    <flux:text size="sm" class="text-zinc-500">Ready to go live.</flux:text>
+                </flux:timeline.content>
+            </flux:timeline.item>
+        </flux:timeline>
+    </div>
+
+    <div>
+        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">
             Indicator variants — bare, a colour, or a glyph in the middle
         </flux:text>
 
-        <flux:timeline size="sm">
+        <flux:timeline>
             <flux:timeline.item>
                 <flux:timeline.indicator variant="bare" />
                 <flux:timeline.content>
@@ -123,7 +155,8 @@
             horizontal, with align=&quot;start&quot;
         </flux:text>
 
-        <flux:timeline horizontal size="sm" align="start">
+        <flux:timeline horizontal align="start">
+
             <flux:timeline.item status="complete">
                 <flux:timeline.indicator />
                 <flux:timeline.content>
