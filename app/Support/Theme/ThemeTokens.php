@@ -153,7 +153,7 @@ final readonly class ThemeTokens
     {
         try {
             return self::fromArray($data);
-        } catch (ValidationException|\TypeError) {
+        } catch (ValidationException) {
             return null;
         }
     }

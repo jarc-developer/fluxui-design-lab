@@ -43,9 +43,9 @@ class ThemeExport extends Command
             return self::FAILURE;
         }
 
-        $output = $this->option('json')
-            ? json_encode($theme->tokens->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
-            : $compiler->export($theme->tokens, $theme->name);
+        $output = (string) ($this->option('json')
+            ? json_encode($theme->tokens->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            : $compiler->export($theme->tokens, $theme->name));
 
         $path = $this->option('path');
 
@@ -54,7 +54,7 @@ class ThemeExport extends Command
             File::put($path, $output);
             $this->info("Theme [{$theme->name}] exported to [{$path}].");
         } else {
-            $this->output->write($output);
+            $this->line($output);
         }
 
         return self::SUCCESS;

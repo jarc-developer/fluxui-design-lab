@@ -80,7 +80,7 @@ final class ThemeCompiler
     /**
      * The generated ramps as hex, for swatches.
      *
-     * @return array<string, array<string, string>>
+     * @return array<string, array<int|string, string>>
      */
     public function ramps(ThemeTokens $tokens): array
     {
@@ -145,9 +145,12 @@ final class ThemeCompiler
             '--font-sans' => $this->fontStack($tokens),
         ];
 
+        /** @var Color $baseDark */
+        $baseDark = $base['800'] ?? $base[800] ?? Color::fromHex('#262626');
+
         $dark = [
             '--color-accent' => $accentDark->toHex(),
-            '--color-accent-content' => $this->accentContent($accentDark, $base['800'], 0.08),
+            '--color-accent-content' => $this->accentContent($accentDark, $baseDark, 0.08),
             '--color-accent-foreground' => $tokens->accentForegroundDark ?? $accentDark->readableForeground()->toHex(),
         ];
 

@@ -65,6 +65,7 @@ docker compose exec app php artisan flux:publish <component>   # customise one c
 | `/components/calendar` | `flux:calendar` month view, compared to `flux:date-picker` (Pro) |
 | `/components/charts` | the `flux:chart` family as a preset gallery — line, bar and pie presets, plus a reference tab (Pro) |
 | `/theme` | appearance, accent, palette, radius, type scale, spacing |
+| `/theme/generator` | DaisyUI-style theme creator: accents, neutral zinc ramp, radius, density, fonts, presets, share URL, CSS export, and global activation |
 | `/layouts` | cards, nav lists, separators, auth shells, shell anatomy |
 
 Pages live in `resources/views/pages/` and are wrapped automatically by
@@ -110,6 +111,24 @@ usual file-backed snippet.
 `tick-step`, `target-tick-count` and `flux:chart.legend`'s `field`/`format` — plus the pie
 rules and the one attribute (`scale`) that throws. A test asserts none of them is used as an
 attribute anywhere on the page, so a preset cannot quietly do nothing.
+
+## The theme generator
+
+`/theme/generator` provides a DaisyUI-style theme creator tailored for Flux UI and Tailwind CSS v4.
+
+- **Global activation:** activating a theme marks it in the database and renders an unlayered
+  `<style id="lab-theme">` in `resources/views/partials/theme.blade.php`. This overrides Tailwind
+  `@theme` values and applies across **every page of the app** (catalog, dashboard, settings, auth).
+- **OKLCH palette synthesis:** changing base hue and chroma generates a complete 11-step neutral
+  ramp (`--color-zinc-50` through `--color-zinc-950`), following Tailwind v4's lightness curve.
+  Accents generate readable foregrounds and text contrast automatically.
+- **Export for sibling projects:** copy the Tailwind v4 `@theme` CSS block from the UI or run:
+  ```bash
+  docker compose exec app php artisan theme:export ocean --path=resources/css/theme-ocean.css
+  ```
+  Paste the block into `lazonabasketball` or `adcom-sites` right after the Flux CSS import.
+- **Shareable state:** theme parameters serialize to compact URL queries (`?theme=...`) via
+  compressed base64url payloads.
 
 ## Notes
 

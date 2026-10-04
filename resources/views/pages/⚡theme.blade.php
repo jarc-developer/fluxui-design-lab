@@ -7,18 +7,40 @@ new #[Title('Theme & Tokens')] class extends Component {
     public string $accent = '#4f46e5';
     public string $previewRadius = 'rounded-lg';
 
+    public function mount(): void
+    {
+        $active = \App\Models\Theme::query()->active()->first();
+        if ($active) {
+            $this->accent = $active->tokens->accentLight;
+        }
+    }
+
     public function with(): array
     {
+        $active = \App\Models\Theme::query()->active()->first();
+        $baseRamp = $active
+            ? app(\App\Support\Theme\ThemeCompiler::class)->ramps($active->tokens)['base'] ?? null
+            : null;
+
+        $shades = $baseRamp
+            ? array_map(fn ($step, $hex) => ['name' => $step, 'hex' => $hex], array_keys($baseRamp), $baseRamp)
+            : [
+                ['name' => '50', 'hex' => '#fafafa'],
+                ['name' => '100', 'hex' => '#f5f5f5'],
+                ['name' => '200', 'hex' => '#e5e5e5'],
+                ['name' => '300', 'hex' => '#d4d4d4'],
+                ['name' => '400', 'hex' => '#a1a1a1'],
+                ['name' => '500', 'hex' => '#737373'],
+                ['name' => '600', 'hex' => '#525252'],
+                ['name' => '700', 'hex' => '#404040'],
+                ['name' => '800', 'hex' => '#262626'],
+                ['name' => '900', 'hex' => '#171717'],
+                ['name' => '950', 'hex' => '#0a0a0a'],
+            ];
+
         return [
-            'shades' => [
-                ['name' => '50', 'hex' => '#eef2ff'],
-                ['name' => '100', 'hex' => '#e0e7ff'],
-                ['name' => '300', 'hex' => '#a5b4fc'],
-                ['name' => '500', 'hex' => '#6366f1'],
-                ['name' => '600', 'hex' => '#4f46e5'],
-                ['name' => '700', 'hex' => '#4338ca'],
-                ['name' => '900', 'hex' => '#312e81'],
-            ],
+            'activeThemeName' => $active?->name ?? 'Default',
+            'shades' => $shades,
             'spacing' => ['0', '1', '2', '3', '4', '6', '8', '12', '16'],
             'radius' => ['rounded-none', 'rounded-md', 'rounded-lg', 'rounded-xl', 'rounded-full'],
             'typeScale' => [
@@ -34,6 +56,17 @@ new #[Title('Theme & Tokens')] class extends Component {
 }; ?>
 
     <div class="flex w-full flex-1 flex-col gap-8">
+        <flux:callout variant="info" icon="paint-brush" class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <flux:callout.heading>Theme Generator</flux:callout.heading>
+                <flux:callout.text>
+                    Create, preview, and globally activate custom color palettes, neutral tones, corner radiuses, and fonts across all project pages.
+                </flux:callout.text>
+            </div>
+            <flux:button :href="route('theme.generator')" variant="primary" size="sm" icon-trailing="arrow-right" wire:navigate>
+                Open Theme Generator
+            </flux:button>
+        </flux:callout>
         <x-lab.section heading="Appearance"
                       subheading="Drives Flux's appearance, mirrored by the account setting.">
             <x-lab.example src="lab.examples.theme.appearance"

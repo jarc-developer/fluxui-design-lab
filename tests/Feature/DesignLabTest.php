@@ -56,6 +56,7 @@ class DesignLabTest extends TestCase
             'data' => ['/components/data'],
             'overlays' => ['/components/overlays'],
             'theme' => ['/theme'],
+            'theme-generator' => ['/theme/generator'],
             'layouts' => ['/layouts'],
             'editor' => ['/components/editor'],
             'composer' => ['/components/composer'],

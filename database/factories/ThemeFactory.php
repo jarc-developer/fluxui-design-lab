@@ -19,7 +19,8 @@ class ThemeFactory extends Factory
      */
     public function definition(): array
     {
-        $name = Str::title($this->faker->unique()->words(2, true));
+        $words = (array) $this->faker->unique()->words(2);
+        $name = Str::title(implode(' ', $words));
 
         return [
             'name' => $name,

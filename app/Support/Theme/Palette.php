@@ -29,7 +29,7 @@ final class Palette
      * A chromatic ramp. The step whose lightness is closest to the seed is the seed
      * itself, so the exact colour the user picked always appears in the ramp.
      *
-     * @return array<string, Color>
+     * @return array<int|string, Color>
      */
     public static function fromSeed(Color $seed): array
     {
@@ -47,7 +47,7 @@ final class Palette
     /**
      * A neutral ramp tinted towards a hue. Chroma 0 reproduces Tailwind's `neutral`.
      *
-     * @return array<string, Color>
+     * @return array<int|string, Color>
      */
     public static function neutral(float $hue, float $chroma): array
     {
