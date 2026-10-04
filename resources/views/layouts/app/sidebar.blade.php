@@ -11,13 +11,13 @@
             </flux:sidebar.header>
 
             <flux:sidebar.nav>
-                <flux:sidebar.group :heading="__('Platform')" class="grid">
+                <flux:sidebar.group :heading="__('Platform')">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
 
-                <flux:sidebar.group :heading="__('Components')" class="grid">
+                <flux:sidebar.group :heading="__('Components')">
                     <flux:sidebar.item icon="cursor-arrow-rays" :href="route('components.forms')" :current="request()->routeIs('components.forms')" wire:navigate>
                         {{ __('Forms & Inputs') }}
                     </flux:sidebar.item>
@@ -32,7 +32,7 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
 
-                <flux:sidebar.group :heading="__('Pro Components')" class="grid">
+                <flux:sidebar.group :heading="__('Pro Components')">
                     <flux:sidebar.item icon="chat-bubble-oval-left" :href="route('components.editor')" :current="request()->routeIs('components.editor')" wire:navigate>
                         {{ __('Editor') }}
                     </flux:sidebar.item>
@@ -56,7 +56,7 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
 
-                <flux:sidebar.group :heading="__('Foundations')" class="grid">
+                <flux:sidebar.group :heading="__('Foundations')">
                     <flux:sidebar.item icon="swatch" :href="route('theme')" :current="request()->routeIs('theme')" wire:navigate>
                         {{ __('Theme & Tokens') }}
                     </flux:sidebar.item>
@@ -69,7 +69,7 @@
                 </flux:sidebar.group>
             </flux:sidebar.nav>
 
-            <flux:spacer />
+            <flux:sidebar.spacer />
 
             <flux:sidebar.nav>
                 <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
@@ -81,7 +81,7 @@
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 
-            <x-desktop-user-menu class="hidden lg:block" :name="auth()->user()->name" />
+            <x-desktop-user-menu />
         </flux:sidebar>
 
         <!-- Mobile User Menu -->
@@ -90,36 +90,30 @@
 
             <flux:spacer />
 
-            <flux:dropdown position="top" align="end">
+            <flux:dropdown position="bottom" align="end">
                 <flux:profile
                     :initials="auth()->user()->initials()"
                     icon-trailing="chevron-down"
                 />
 
                 <flux:menu>
-                    <flux:menu.radio.group>
-                        <div class="p-0 text-sm font-normal">
-                            <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
-                                <flux:avatar
-                                    :name="auth()->user()->name"
-                                    :initials="auth()->user()->initials()"
-                                />
+                    <div class="flex items-center gap-2 px-1 py-1.5 text-start text-sm">
+                        <flux:avatar
+                            :name="auth()->user()->name"
+                            :initials="auth()->user()->initials()"
+                        />
 
-                                <div class="grid flex-1 text-start text-sm leading-tight">
-                                    <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
-                                    <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
-                                </div>
-                            </div>
+                        <div class="grid flex-1 text-start text-sm leading-tight">
+                            <flux:heading class="truncate">{{ auth()->user()->name }}</flux:heading>
+                            <flux:text class="truncate">{{ auth()->user()->email }}</flux:text>
                         </div>
-                    </flux:menu.radio.group>
+                    </div>
 
                     <flux:menu.separator />
 
-                    <flux:menu.radio.group>
-                        <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
-                            {{ __('Settings') }}
-                        </flux:menu.item>
-                    </flux:menu.radio.group>
+                    <flux:menu.item :href="route('profile.edit')" icon="cog" wire:navigate>
+                        {{ __('Settings') }}
+                    </flux:menu.item>
 
                     <flux:menu.separator />
 
@@ -138,6 +132,7 @@
                 </flux:menu>
             </flux:dropdown>
         </flux:header>
+
 
         {{ $slot }}
 

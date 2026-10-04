@@ -944,4 +944,29 @@ class DesignLabTest extends TestCase
         );
         $this->assertStringContainsString('size="lg"', $contents);
     }
+
+    public function test_sidebar_layout_uses_official_flux_sidebar_primitives(): void
+    {
+        $contents = File::get(resource_path('views/layouts/app/sidebar.blade.php'));
+
+        $this->assertStringContainsString('<flux:sidebar.spacer />', $contents);
+        $this->assertFalse(
+            (bool) preg_match('/<flux:sidebar\.group[^>]*class=[\'"][^\'"]*grid/i', $contents),
+            'Non-expandable sidebar groups should not specify class="grid" which conflicts with flex flex-col.',
+        );
+        $this->assertStringContainsString('<flux:dropdown position="bottom" align="end">', $contents);
+    }
+
+    public function test_desktop_user_menu_uses_official_flux_dropdown_and_profile_props(): void
+    {
+        $contents = File::get(resource_path('views/components/desktop-user-menu.blade.php'));
+
+        $this->assertStringContainsString('position="top"', $contents);
+        $this->assertStringContainsString('align="start"', $contents);
+        $this->assertStringContainsString('{{ $attributes', $contents);
+        $this->assertFalse(
+            (bool) preg_match('/<flux:menu\.radio\.group>/i', $contents),
+            'Navigation items like Settings and Logout should not be wrapped in flux:menu.radio.group.',
+        );
+    }
 }

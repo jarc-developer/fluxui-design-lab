@@ -126,6 +126,10 @@ new #[Title('Layout Patterns')] class extends Component {
 
         <x-lab.section heading="Shell anatomy"
                       subheading="The sidebar layout used by every page in this lab.">
+            <x-lab.example src="lab.examples.layouts.sidebar"
+                           title="Sidebar navigation shell"
+                           subheading="Collapsible navigation with search, brand, expandable groups, badges, and user profile." />
+
             <div class="flex flex-col gap-3 text-sm">
                 <flux:callout icon="rectangle-group">
                     <code>layouts/app.blade.php</code> wraps the sidebar shell and yields a
@@ -144,3 +148,4 @@ new #[Title('Layout Patterns')] class extends Component {
             </div>
         </x-lab.section>
     </div>
+
