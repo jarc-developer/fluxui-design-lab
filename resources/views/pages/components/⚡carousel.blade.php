@@ -16,11 +16,11 @@ new #[Title('Carousel')] class extends Component {
 
             <x-lab.example src="lab.examples.carousel.variants"
                            title="Behaviour flags"
-                           subheading="fade, autoplay with autoplay:interval, wrap=&quot;rewind&quot;, advance=&quot;page&quot; and disabled." />
+                           subheading="fade with bleed, autoplay with autoplay:interval, wrap=&quot;rewind&quot;, advance=&quot;page&quot;, overlap arrows and disabled." />
 
             <x-lab.example src="lab.examples.carousel.external-controls"
                            title="External controls"
-                           subheading="Give the carousel a name, then point flux:carousel.controls at it to drive it from anywhere on the page." />
+                           subheading="Give the carousel a name, disable built-in arrows with :arrows=&quot;false&quot;, and point flux:carousel.controls at it." />
         </x-lab.section>
 
         <x-lab.section heading="Props reference"
@@ -44,7 +44,7 @@ new #[Title('Carousel')] class extends Component {
                     <flux:card.heading>Appearance</flux:card.heading>
 
                     <ul class="flex flex-col gap-1 text-sm text-zinc-600 dark:text-zinc-400">
-                        <li><code class="font-mono text-xs">fade</code> — cross-fade instead of sliding</li>
+                        <li><code class="font-mono text-xs">fade</code> — edge gradient mask on overflowed track</li>
                         <li><code class="font-mono text-xs">bleed</code> — let slides run to the container edge</li>
                         <li><code class="font-mono text-xs">arrows:position</code> — <code class="font-mono text-xs">inside</code>, <code class="font-mono text-xs">overlap</code> or <code class="font-mono text-xs">outside</code></li>
                         <li><code class="font-mono text-xs">track:class</code> — restyle the scrolling track</li>

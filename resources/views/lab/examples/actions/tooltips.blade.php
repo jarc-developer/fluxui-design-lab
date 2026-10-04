@@ -3,7 +3,7 @@
         <flux:button variant="subtle">Hover</flux:button>
     </flux:tooltip>
 
-    <flux:tooltip content="Shortcut: ⌘K" kbd position="top">
+    <flux:tooltip content="Open palette" kbd="⌘K" position="top">
         <flux:button variant="subtle">With a kbd hint</flux:button>
     </flux:tooltip>
 

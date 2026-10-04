@@ -63,7 +63,7 @@ docker compose exec app php artisan flux:publish <component>   # customise one c
 | `/components/carousel` | `flux:carousel` slides, arrows, indicators (Pro) |
 | `/components/phone` | `flux:phone` country and number input (Pro) |
 | `/components/calendar` | `flux:calendar` month view, compared to `flux:date-picker` (Pro) |
-| `/components/charts` | the whole `flux:chart` family — series, axes, legend, tooltip (Pro) |
+| `/components/charts` | the `flux:chart` family as a preset gallery — line, bar and pie presets, plus a reference tab (Pro) |
 | `/theme` | appearance, accent, palette, radius, type scale, spacing |
 | `/layouts` | cards, nav lists, separators, auth shells, shell anatomy |
 
@@ -94,6 +94,22 @@ markup that produced it. A couple of rules follow from that:
 - Fragments live under `resources/views/`, which Tailwind's `@source '../views'` already scans.
   If you ever move example markup into PHP under `app/`, add `@source '../../app'` or the utility
   classes will silently disappear.
+
+## The charts page
+
+`/components/charts` is a **preset gallery** rather than a flat list, because that is how the
+official page at <https://fluxui.dev/charts> groups its presets. A `flux:tab.group` switches
+between four families, and the first three mirror the official grouping exactly — line
+(Line, Area, Points, Sparkline), bar (Bars, Grouped, Stacked, Horizontal) and pie
+(Pie, Donut, Ring). The fourth, `reference`, holds the attributes that do not belong to a
+family. Every preset is its own fragment file under `lab/examples/charts/`, so it gets the
+usual file-backed snippet.
+
+`lab/examples/charts/conflicts.blade.php` is prose rather than markup, and renders with
+`snippet="false"`. It records the three chart props the engine accepts and then ignores —
+`tick-step`, `target-tick-count` and `flux:chart.legend`'s `field`/`format` — plus the pie
+rules and the one attribute (`scale`) that throws. A test asserts none of them is used as an
+attribute anywhere on the page, so a preset cannot quietly do nothing.
 
 ## Notes
 

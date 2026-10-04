@@ -30,6 +30,6 @@
 
     <div class="flex flex-wrap items-center gap-2">
         <flux:profile name="Ana Ruiz" :initials="'AR'" />
-        <flux:profile name="Kim Ito" :initials="'KI'" icon-trailing="chevron-down" />
+        <flux:profile name="Kim Ito" :initials="'KI'" :chevron="false" />
     </div>
 </div>

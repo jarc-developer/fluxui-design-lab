@@ -4,6 +4,11 @@ use Livewire\Attributes\Title;
 use Livewire\Component;
 
 new #[Title('Charts')] class extends Component {
+    // The preset switcher. These names must stay in step with the <flux:tab>
+    // and <flux:tab.panel> names below — a name with no matching panel
+    // renders an empty switcher.
+    public string $family = 'line';
+
     public array $usage = [
         ['label' => 'Jan', 'web' => 120, 'mobile' => 80],
         ['label' => 'Feb', 'web' => 180, 'mobile' => 95],
@@ -11,6 +16,29 @@ new #[Title('Charts')] class extends Component {
         ['label' => 'Apr', 'web' => 310, 'mobile' => 160],
         ['label' => 'May', 'web' => 280, 'mobile' => 190],
         ['label' => 'Jun', 'web' => 420, 'mobile' => 230],
+    ];
+
+    // A third series, so a group has something to put side by side.
+    public array $grouped = [
+        ['label' => 'Jan', 'web' => 120, 'mobile' => 80, 'tablet' => 45],
+        ['label' => 'Feb', 'web' => 180, 'mobile' => 95, 'tablet' => 62],
+        ['label' => 'Mar', 'web' => 240, 'mobile' => 140, 'tablet' => 88],
+        ['label' => 'Apr', 'web' => 310, 'mobile' => 160, 'tablet' => 74],
+        ['label' => 'May', 'web' => 280, 'mobile' => 190, 'tablet' => 96],
+        ['label' => 'Jun', 'web' => 420, 'mobile' => 230, 'tablet' => 118],
+    ];
+
+    // A datetime index, the shape the official charts page generates. Any
+    // string Date.parse accepts becomes a time axis rather than a category.
+    public array $revenue = [
+        ['x' => '2026-01-01T00:00:00Z', 'revenue' => 1860, 'expenses' => 1240],
+        ['x' => '2026-02-01T00:00:00Z', 'revenue' => 2140, 'expenses' => 1310],
+        ['x' => '2026-03-01T00:00:00Z', 'revenue' => 1980, 'expenses' => 1405],
+        ['x' => '2026-04-01T00:00:00Z', 'revenue' => 2520, 'expenses' => 1390],
+        ['x' => '2026-05-01T00:00:00Z', 'revenue' => 2960, 'expenses' => 1580],
+        ['x' => '2026-06-01T00:00:00Z', 'revenue' => 3410, 'expenses' => 1620],
+        ['x' => '2026-07-01T00:00:00Z', 'revenue' => 3180, 'expenses' => 1745],
+        ['x' => '2026-08-01T00:00:00Z', 'revenue' => 3820, 'expenses' => 1810],
     ];
 
     public array $share = [
@@ -29,30 +57,105 @@ new #[Title('Charts')] class extends Component {
         ['label' => 'May', 'web' => 72, 'mobile' => 30],
         ['label' => 'Jun', 'web' => 110, 'mobile' => 18],
     ];
+
+    // A bare array of values — no field, no label, no index key.
+    public array $spark = [15, 18, 16, 19, 22, 25, 28, 25, 29, 28, 32, 35];
 }; ?>
 
     <div class="flex w-full flex-1 flex-col gap-8">
         <x-lab.section heading="Charts"
                       subheading="Declarative SVG charts. Each series is a template the chart element consumes. Flux Pro only.">
-            <x-lab.example src="lab.examples.charts.series"
-                           :data="['usage' => $usage, 'share' => $share]"
-                           title="Series types"
-                           subheading="line, area, bar, point and pie. The pie reads its slice labels from label-field; inner-radius turns it into a donut, and only a pie colours the tooltip indicator." />
+            <flux:tab.group wire:model="family">
+                <flux:tabs>
+                    <flux:tab name="line" icon="presentation-chart-line">Line charts</flux:tab>
+                    <flux:tab name="bar" icon="chart-bar">Bar charts</flux:tab>
+                    <flux:tab name="pie" icon="chart-pie">Pie charts</flux:tab>
+                    <flux:tab name="reference" icon="wrench-screwdriver">Reference</flux:tab>
+                </flux:tabs>
 
-            <x-lab.example src="lab.examples.charts.group-stack"
-                           :data="['usage' => $usage]"
-                           title="Multiple fields"
-                           subheading="chart.group overlays series on shared axes; chart.stack accumulates them. Legends are hand-composed, so each indicator mirrors the colour of its bar." />
+                <flux:tab.panel name="line" class="flex flex-col gap-8">
+                    <x-lab.example src="lab.examples.charts.line"
+                                   :data="['usage' => $usage]"
+                                   title="Line"
+                                   subheading="curve decides whether the points are joined smoothly or straight — smooth is the default, and only those two values exist." />
 
-            <x-lab.example src="lab.examples.charts.axes"
-                           :data="['usage' => $usage]"
-                           title="Axes"
-                           subheading="Axis children are axis-aware, so grid, line, mark and tick follow the axis they sit in. tick-values thins the x axis; horizontal swaps the axes." />
+                    <x-lab.example src="lab.examples.charts.area"
+                                   :data="['usage' => $usage]"
+                                   title="Area"
+                                   subheading="The engine has no gradient, so a start and end opacity is just an opacity on the fill." />
 
-            <x-lab.example src="lab.examples.charts.annotations"
-                           :data="['usage' => $usage, 'delta' => $delta]"
-                           title="Annotations"
-                           subheading="summary readouts, the full tooltip set, a cursor, a zero line, the chart gutter, and a sparkline." />
+                    <x-lab.example src="lab.examples.charts.points"
+                                   :data="['usage' => $usage]"
+                                   title="Points"
+                                   subheading="r is the radius and stroke-width the outline. Both reach the circle directly." />
+
+                    <x-lab.example src="lab.examples.charts.sparkline"
+                                   :data="['spark' => $spark]"
+                                   title="Sparkline"
+                                   subheading="A bare array of values, with the 8px gutter turned off so the line reaches both edges." />
+                </flux:tab.panel>
+
+                <flux:tab.panel name="bar" class="flex flex-col gap-8">
+                    <x-lab.example src="lab.examples.charts.bars"
+                                   :data="['usage' => $usage]"
+                                   title="Bars"
+                                   subheading="radius rounds the top corners, min-height keeps a zero value visible, and width thins the bar inside its slot." />
+
+                    <x-lab.example src="lab.examples.charts.grouped"
+                                   :data="['grouped' => $grouped]"
+                                   title="Grouped"
+                                   subheading="A group lays its bars side by side. width and gap decide how much of each slot the group takes." />
+
+                    <x-lab.example src="lab.examples.charts.stacked"
+                                   :data="['grouped' => $grouped]"
+                                   title="Stacked"
+                                   subheading="A stack accumulates its bars instead. Its width and gap are the same two knobs." />
+
+                    <x-lab.example src="lab.examples.charts.horizontal"
+                                   :data="['usage' => $usage]"
+                                   title="Horizontal"
+                                   subheading="horizontal swaps the axes, so the index field moves to the y axis and the value axis to the top." />
+                </flux:tab.panel>
+
+                <flux:tab.panel name="pie" class="flex flex-col gap-8">
+                    <x-lab.example src="lab.examples.charts.pie"
+                                   :data="['share' => $share]"
+                                   title="Pie"
+                                   subheading="The slices read their names from label-field. Their colours come from a built-in palette, not from the markup." />
+
+                    <x-lab.example src="lab.examples.charts.donut"
+                                   :data="['share' => $share]"
+                                   title="Donut"
+                                   subheading="inner-radius punches a hole in the middle, and this is the one place the tooltip indicator takes its colour from the slice." />
+
+                    <x-lab.example src="lab.examples.charts.ring"
+                                   :data="['share' => $share]"
+                                   title="Ring"
+                                   subheading="Push inner-radius far enough and the donut becomes a ring. The child's stroke-width is the gap between slices." />
+                </flux:tab.panel>
+
+                <flux:tab.panel name="reference" class="flex flex-col gap-8">
+                    <x-lab.example src="lab.examples.charts.axes"
+                                   :data="['usage' => $usage]"
+                                   title="Axes and scales"
+                                   subheading="Every knob an axis accepts, including the step control that is spelled differently to what you would expect." />
+
+                    <x-lab.example src="lab.examples.charts.data-shapes"
+                                   :data="['revenue' => $revenue, 'usage' => $usage]"
+                                   title="Data shapes"
+                                   subheading="A datetime index, a different locale, and what the chart infers from your keys." />
+
+                    <x-lab.example src="lab.examples.charts.annotations"
+                                   :data="['usage' => $usage, 'delta' => $delta]"
+                                   title="Annotations"
+                                   subheading="Summary readouts with a fallback, the full tooltip set, a cursor in both styles, a zero line, and the gutter." />
+
+                    <x-lab.example src="lab.examples.charts.conflicts"
+                                   snippet="false"
+                                   title="Limits worth knowing"
+                                   subheading="Prose rather than markup — the pie rules, and the props that are accepted but never read." />
+                </flux:tab.panel>
+            </flux:tab.group>
         </x-lab.section>
 
         <x-lab.section heading="How a chart is assembled"
@@ -114,6 +217,19 @@ new #[Title('Charts')] class extends Component {
                     <code class="rounded bg-white/20 px-1">template[name="svg"]</code> — a
                     <code class="rounded bg-white/20 px-1">flux:chart</code> with no
                     <code class="rounded bg-white/20 px-1">flux:chart.svg</code> inside it renders nothing at all.
+                </flux:text>
+
+                <flux:text size="sm">
+                    Three props are accepted and then ignored, so a preset that sets them will look correct in
+                    the snippet and do nothing on the page: <code class="rounded bg-white/20 px-1">tick-step</code>
+                    (the step on a linear axis is <code class="rounded bg-white/20 px-1">interval</code> instead),
+                    <code class="rounded bg-white/20 px-1">target-tick-count</code> on
+                    <code class="rounded bg-white/20 px-1">flux:chart.axis.tick</code> (it lands on the inner
+                    <code class="rounded bg-white/20 px-1">&lt;text&gt;</code>, and the engine reads it off the
+                    template instead), and <code class="rounded bg-white/20 px-1">field</code> /
+                    <code class="rounded bg-white/20 px-1">format</code> on
+                    <code class="rounded bg-white/20 px-1">flux:chart.legend</code> (a legend is just its slot).
+                    The <strong>Limits worth knowing</strong> tab has the details.
                 </flux:text>
             </flux:callout>
         </x-lab.section>

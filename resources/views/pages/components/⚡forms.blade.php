@@ -17,6 +17,7 @@ new #[Title('Forms & Inputs')] class extends Component {
     public string $accent = '#6366f1';
     public int $volume = 60;
     public array $priceRange = [20, 80];
+    public array $dateRange = ['2026-01-15', '2026-01-22'];
     public array $tags = ['livewire', 'flux'];
     public array $skus = ['flux-acme-001'];
     public array $channels = ['email'];
@@ -62,14 +63,11 @@ new #[Title('Forms & Inputs')] class extends Component {
                 <flux:checkbox wire:model="agree" label="I agree to the design guidelines" />
                 <flux:checkbox label="Disabled option" disabled />
 
-                <div>
-                    <flux:label>Plan</flux:label>
-                    <flux:radio.group wire:model="plan" label="Choose a plan">
-                        <flux:radio value="free" label="Free" />
-                        <flux:radio value="pro" label="Pro" />
-                        <flux:radio value="team" label="Team" />
-                    </flux:radio.group>
-                </div>
+                <flux:radio.group wire:model="plan" label="Choose a plan">
+                    <flux:radio value="free" label="Free" />
+                    <flux:radio value="pro" label="Pro" />
+                    <flux:radio value="team" label="Team" />
+                </flux:radio.group>
 
                 <div class="flex flex-col gap-4">
                     <flux:switch wire:model="notifications" label="Email notifications" />
@@ -78,8 +76,7 @@ new #[Title('Forms & Inputs')] class extends Component {
             </div>
 
             <div class="max-w-xs">
-                <flux:label>One-time passcode</flux:label>
-                <flux:otp length="6" />
+                <flux:otp length="6" label="One-time passcode" />
             </div>
         </x-lab.section>
 
@@ -120,7 +117,7 @@ new #[Title('Forms & Inputs')] class extends Component {
 
         <x-lab.section heading="Pro pickers"
                       subheading="date-picker, time-picker, slider and color-picker ship with Flux Pro.">
-            <x-lab.example src="lab.examples.forms.date-picker"
+            <x-lab.example :data="['dateRange' => $dateRange]" src="lab.examples.forms.date-picker"
                            title="Date picker"
                            subheading="Button and input triggers, confirmation, typed inputs, week numbers, an inline dropdown mode and custom presets." />
 

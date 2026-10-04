@@ -1,29 +1,29 @@
 <div class="flex flex-wrap items-center gap-2">
     <flux:button
-        wire:click="$dispatch('toast', type: 'success', title: 'Success', description: 'Everything worked.')"
+        x-on:click="$flux.toast({ heading: 'Success', text: 'Everything worked.', variant: 'success' })"
         color="green"
         variant="subtle"
     >Success</flux:button>
 
     <flux:button
-        wire:click="$dispatch('toast', type: 'danger', title: 'Error', description: 'Something failed.')"
+        x-on:click="$flux.toast({ heading: 'Error', text: 'Something failed.', variant: 'danger' })"
         color="red"
         variant="subtle"
     >Error</flux:button>
 
     <flux:button
-        wire:click="$dispatch('toast', type: 'warning', title: 'Warning', description: 'Check the input.')"
+        x-on:click="$flux.toast({ heading: 'Warning', text: 'Check the input.', variant: 'warning' })"
         color="amber"
         variant="subtle"
     >Warning</flux:button>
 
     <flux:button
-        wire:click="$dispatch('toast', type: 'info', title: 'Info', description: 'FYI only.')"
+        x-on:click="$flux.toast({ heading: 'Info', text: 'FYI only.', variant: 'info' })"
         variant="subtle"
     >Info</flux:button>
 
     <flux:button
-        wire:click="$dispatch('toast', type: 'success', title: 'With actions', description: 'A toast can carry its own buttons.')"
+        x-on:click="$flux.toast({ heading: 'With action', text: 'A toast can carry an interactive action.', variant: 'success', action: { label: 'Undo' } })"
         variant="subtle"
-    >With actions</flux:button>
+    >With action</flux:button>
 </div>

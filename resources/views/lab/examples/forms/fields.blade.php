@@ -16,7 +16,7 @@
     </flux:fieldset>
 
     <div class="flex flex-col gap-2">
-        <flux:label>Explicit parts</flux:label>
+        <flux:heading size="sm">Explicit parts</flux:heading>
 
         <flux:field variant="block">
             <flux:label>Project slug</flux:label>

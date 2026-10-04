@@ -13,5 +13,5 @@
 
     <flux:date-picker wire:model="released" label="Custom presets" :presets="['Next Friday' => '2026-10-09', 'New year' => '2027-01-01']" />
 
-    <flux:date-picker wire:model="released" label="Range mode" mode="range" />
+    <flux:date-picker wire:model="dateRange" label="Range mode" mode="range" />
 </div>

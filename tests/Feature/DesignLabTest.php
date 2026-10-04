@@ -472,4 +472,408 @@ class DesignLabTest extends TestCase
 
         $this->assertSame([], $offenders, 'Pass :format as an array, never as a string.');
     }
+
+    public function test_charts_page_offers_the_official_preset_taxonomy(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $html = Livewire::test('pages::components.charts')->html();
+
+        // The switcher mirrors the official page's grouping — line, bar and
+        // pie charts — plus a reference tab for everything that does not fit
+        // a family. A family name with no matching panel renders an empty
+        // switcher, so both halves have to be present.
+        foreach ([
+            'Line charts' => 'line',
+            'Bar charts' => 'bar',
+            'Pie charts' => 'pie',
+            'Reference' => 'reference',
+        ] as $label => $name) {
+            $this->assertStringContainsString($label, $html, "The charts page is missing the \"{$label}\" tab.");
+            $this->assertStringContainsString('name="'.$name.'"', $html, "No tab panel is bound to \"{$name}\".");
+        }
+
+        // Every preset is a file, and the snippet underneath it is read back
+        // out of that same file, so asserting on the source is the strongest
+        // check available: rename or delete a fragment and this fails.
+        // conflicts is excluded — it is prose and renders with snippet="false".
+        foreach ([
+            'line', 'area', 'points', 'sparkline',
+            'bars', 'grouped', 'stacked', 'horizontal',
+            'pie', 'donut', 'ring',
+            'axes', 'data-shapes', 'annotations',
+        ] as $fragment) {
+            $source = trim(File::get(resource_path('views/lab/examples/charts/'.$fragment.'.blade.php')));
+
+            $this->assertStringContainsString(
+                e($source),
+                $html,
+                "The \"{$fragment}\" preset is missing from the charts page.",
+            );
+        }
+    }
+
+    public function test_charts_page_covers_the_documented_engine_attributes(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $html = Livewire::test('pages::components.charts')->html();
+
+        // Each of these is a knob the chart engine actually reads. They are
+        // why the reference tab exists — drop one and it should fail here.
+        foreach ([
+            'curve=',
+            'interval=',
+            'tick-count=',
+            'tick-prefix=',
+            'tick-suffix=',
+            'tick-start=',
+            'tick-end=',
+            'position=',
+            'min-height=',
+            'inner-radius=',
+            'stroke-dasharray=',
+            'type="area"',
+            'fallback=',
+            'locale=',
+        ] as $attribute) {
+            $this->assertStringContainsString($attribute, $html, "The charts page no longer demonstrates {$attribute}.");
+        }
+
+        // The props the engine accepts and then ignores, plus the one that
+        // throws. The trailing "=" is deliberate: the reference tab names them
+        // in prose, and this only catches one being used as an attribute.
+        foreach (['tick-step=', 'target-tick-count=', 'scale="log"'] as $noOp) {
+            $this->assertStringNotContainsString($noOp, $html, "{$noOp} does nothing, so no preset should set it.");
+        }
+    }
+
+    public function test_charts_page_never_mixes_a_pie_with_cartesian_marks(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $html = Livewire::test('pages::components.charts')->html();
+
+        $dom = new DOMDocument;
+        $dom->loadHTML(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'.$html.'</body></html>',
+            LIBXML_NOERROR | LIBXML_NOWARNING,
+        );
+
+        $xpath = new DOMXPath($dom);
+
+        $pies = $xpath->query('//ui-chart[.//template[@name="pie"]]');
+
+        $this->assertGreaterThan(0, $pies->length, 'No pie charts found on the charts page.');
+
+        // The engine warns and paints nothing when a pie shares a chart with
+        // any cartesian mark or chrome, and it only implements a single pie.
+        foreach (['bar', 'line', 'area', 'point', 'axis', 'cursor', 'zero-line'] as $mark) {
+            foreach ($pies as $chart) {
+                $this->assertSame(
+                    0,
+                    $xpath->query('.//template[@name="'.$mark.'"]', $chart)->length,
+                    "A pie cannot share a chart with a \"{$mark}\" mark.",
+                );
+            }
+        }
+
+        foreach ($pies as $chart) {
+            $this->assertSame(
+                1,
+                $xpath->query('.//template[@name="pie"]', $chart)->length,
+                'A chart may only hold one pie.',
+            );
+        }
+    }
+
+    public function test_the_limits_example_renders_prose_without_a_snippet(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $html = Livewire::test('pages::components.charts')->html();
+
+        $dom = new DOMDocument;
+        $dom->loadHTML(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>'.$html.'</body></html>',
+            LIBXML_NOERROR | LIBXML_NOWARNING,
+        );
+
+        $xpath = new DOMXPath($dom);
+        $examples = $xpath->query('//*[@data-lab-example]');
+
+        $this->assertSame(15, $examples->length, 'Unexpected number of examples on the charts page.');
+
+        $withoutSnippet = 0;
+
+        foreach ($examples as $example) {
+            if ($xpath->query('.//pre', $example)->length === 0) {
+                $withoutSnippet++;
+            }
+        }
+
+        // Blade hands snippet="false" to the component as the string "false",
+        // which is truthy unless it is normalised first. The limits example is
+        // prose, and it is the only one that opts out of a snippet.
+        $this->assertSame(1, $withoutSnippet, 'Exactly one example should render without a copyable snippet.');
+    }
+
+    public function test_editor_examples_use_toolbar_prop_on_root_component(): void
+    {
+        foreach (File::allFiles(resource_path('views/lab/examples/editor')) as $file) {
+            $contents = $file->getContents();
+
+            $this->assertDoesNotMatchRegularExpression(
+                '/<flux:editor(?!\.)\b[^>]*\sitems=/i',
+                $contents,
+                "{$file->getRelativePathname()} mistakenly uses items= on <flux:editor> instead of toolbar=.",
+            );
+        }
+    }
+
+    public function test_command_wrapper_does_not_declare_icon(): void
+    {
+        foreach (File::allFiles(resource_path('views/lab/examples/actions')) as $file) {
+            $this->assertDoesNotMatchRegularExpression(
+                '/<flux:command(?!\.)\b[^>]*\sicon=/i',
+                $file->getContents(),
+                "{$file->getRelativePathname()} mistakenly declares icon= on <flux:command> instead of <flux:command.input>.",
+            );
+        }
+    }
+
+    public function test_dropdowns_use_valid_position_prop_not_placement(): void
+    {
+        foreach (File::allFiles(resource_path('views')) as $file) {
+            $this->assertDoesNotMatchRegularExpression(
+                '/<flux:dropdown\b[^>]*\splacement=/i',
+                $file->getContents(),
+                "{$file->getRelativePathname()} mistakenly uses placement= instead of position= on <flux:dropdown>.",
+            );
+        }
+    }
+
+    public function test_carousel_examples_specify_slide_widths(): void
+    {
+        foreach (File::allFiles(resource_path('views/lab/examples/carousel')) as $file) {
+            preg_match_all('/<flux:carousel\.slide\b([^>]*)>/i', $file->getContents(), $matches);
+
+            $this->assertNotEmpty($matches[0], "No carousel slides found in {$file->getRelativePathname()}.");
+
+            foreach ($matches[1] as $attributes) {
+                $this->assertMatchesRegularExpression(
+                    '/class="[^"]*w-(?:full|[0-9]+\/[0-9]+)/',
+                    $attributes,
+                    "A slide in {$file->getRelativePathname()} is missing a width class (e.g. w-full or w-1/2).",
+                );
+            }
+        }
+    }
+
+    public function test_external_controls_carousel_disables_built_in_arrows(): void
+    {
+        $content = File::get(resource_path('views/lab/examples/carousel/external-controls.blade.php'));
+
+        $this->assertMatchesRegularExpression(
+            '/<flux:carousel\b[^>]*:arrows="false"/',
+            $content,
+            'The external-controls carousel must specify :arrows="false" to prevent double arrows.',
+        );
+    }
+
+    public function test_carousel_page_demonstrates_key_flux_pro_attributes(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $html = Livewire::test('pages::components.carousel')->html();
+
+        foreach ([
+            'indicators',
+            'advance="page"',
+            'wrap="rewind"',
+            'arrows:position=',
+            'name="gallery"',
+            ':arrows=',
+        ] as $needle) {
+            $this->assertStringContainsString(
+                $needle,
+                $html,
+                "The carousel catalog page is missing \"{$needle}\".",
+            );
+        }
+    }
+
+    public function test_charts_never_wrap_lines_in_a_group(): void
+    {
+        foreach (File::allFiles(resource_path('views/lab/examples/charts')) as $file) {
+            $contents = $file->getContents();
+            $this->assertFalse(
+                (bool) preg_match('/<flux:chart\.group[^>]*>[\s\S]*?<flux:chart\.line/i', $contents),
+                "File {$file->getFilename()} incorrectly wraps <flux:chart.line> in <flux:chart.group>. Groups are only for bars.",
+            );
+        }
+    }
+
+    public function test_cartesian_chart_examples_with_axes_declare_ticks(): void
+    {
+        // Without <flux:chart.axis.tick>, the chart JS engine never hydrates tick labels,
+        // leaving the axes blank. All examples declaring axes should render ticks.
+        foreach (['axes', 'data-shapes', 'horizontal'] as $fragment) {
+            $contents = File::get(resource_path("views/lab/examples/charts/{$fragment}.blade.php"));
+            $this->assertStringContainsString(
+                '<flux:chart.axis.tick',
+                $contents,
+                "Example {$fragment}.blade.php must include <flux:chart.axis.tick> to render tick labels.",
+            );
+        }
+    }
+
+    public function test_input_groups_order_suffix_after_input(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/forms/input-group.blade.php'));
+
+        $inputPos = strpos($contents, '<flux:input placeholder="Grouped input" />');
+        $suffixPos = strpos($contents, '<flux:input.group.suffix>');
+
+        $this->assertNotFalse($inputPos);
+        $this->assertNotFalse($suffixPos);
+        $this->assertGreaterThan($inputPos, $suffixPos, '<flux:input.group.suffix> must follow <flux:input>.');
+    }
+
+    public function test_custom_select_indicators_are_configured_via_attributes(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/forms/select-custom.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:select\.indicator/i', $contents),
+            'Stray <flux:select.indicator> tags found outside options. Indicators should be set via indicator="..." on <flux:select> or <flux:select.option>.',
+        );
+        $this->assertStringContainsString('indicator="checkbox"', $contents);
+        $this->assertStringContainsString('indicator="radio"', $contents);
+    }
+
+    public function test_otp_and_slider_examples_use_built_in_label_attributes(): void
+    {
+        $otpContents = File::get(resource_path('views/lab/examples/forms/otp.blade.php'));
+        $this->assertFalse(
+            (bool) preg_match('/<flux:label/i', $otpContents),
+            'otp.blade.php should use label="..." directly on <flux:otp> instead of redundant <flux:label>.',
+        );
+
+        $sliderContents = File::get(resource_path('views/lab/examples/forms/slider.blade.php'));
+        $this->assertFalse(
+            (bool) preg_match('/<flux:label/i', $sliderContents),
+            'slider.blade.php should use label="..." directly on <flux:slider> instead of redundant <flux:label>.',
+        );
+    }
+
+    public function test_viewable_input_uses_password_type(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/forms/input-affixes.blade.php'));
+        $this->assertTrue(
+            (bool) preg_match('/<flux:input[^>]*type="password"[^>]*viewable/i', $contents),
+            'Viewable inputs must specify type="password" so contents start masked.',
+        );
+    }
+
+    public function test_date_picker_range_mode_binds_to_date_range(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/forms/date-picker.blade.php'));
+        $this->assertTrue(
+            (bool) preg_match('/<flux:date-picker[^>]*wire:model="dateRange"[^>]*mode="range"/i', $contents)
+            || (bool) preg_match('/<flux:date-picker[^>]*mode="range"[^>]*wire:model="dateRange"/i', $contents),
+            'Range mode date-picker must bind to an array property (dateRange) instead of single string property.',
+        );
+    }
+
+    public function test_modals_render_action_buttons_without_dropped_footer_slot(): void
+    {
+        $overlays = File::get(resource_path('views/pages/components/⚡overlays.blade.php'));
+        $this->assertFalse(
+            (bool) preg_match('/<x-slot\s+name=["\']footer["\']/i', $overlays),
+            '⚡overlays.blade.php uses <x-slot name="footer"> inside <flux:modal>, which is silently dropped because flux:modal does not declare a footer slot.',
+        );
+
+        $triggers = File::get(resource_path('views/lab/examples/overlays/modal-triggers.blade.php'));
+        $this->assertFalse(
+            (bool) preg_match('/<x-slot\s+name=["\']footer["\']/i', $triggers),
+            'modal-triggers.blade.php uses <x-slot name="footer"> inside <flux:modal>, which is silently dropped.',
+        );
+    }
+
+    public function test_toast_examples_use_official_flux_toast_api(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/overlays/toasts.blade.php'));
+        $this->assertFalse(
+            (bool) preg_match('/\$dispatch\([\'"]toast[\'"]/i', $contents),
+            'toasts.blade.php should use $flux.toast() instead of broken $dispatch("toast", ...).',
+        );
+        $this->assertTrue(
+            (bool) preg_match('/\$flux\.toast\(/i', $contents),
+            'toasts.blade.php must use $flux.toast(...) to trigger toast notifications.',
+        );
+    }
+
+    public function test_popover_examples_are_hosted_in_dropdown_and_context_menus_use_menu(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/actions/popover.blade.php'));
+
+        $this->assertTrue(
+            (bool) preg_match('/<flux:dropdown[^>]*>[\s\S]*?<flux:popover/i', $contents),
+            'flux:popover must be hosted inside flux:dropdown per official Flux specifications.',
+        );
+
+        $this->assertTrue(
+            (bool) preg_match('/<flux:context>[\s\S]*?<flux:menu/i', $contents),
+            'flux:context must host a flux:menu for right-click context menus.',
+        );
+    }
+
+    public function test_tooltip_examples_declare_string_kbd_shortcut(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/actions/tooltips.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:tooltip[^>]*\skbd\s/i', $contents)
+            || (bool) preg_match('/<flux:tooltip[^>]*\skbd>/i', $contents),
+            'tooltips.blade.php should pass a string shortcut (e.g. kbd="⌘K") to avoid rendering digit 1.',
+        );
+        $this->assertStringContainsString('kbd="⌘K"', $contents);
+    }
+
+    public function test_command_examples_declare_input_element(): void
+    {
+        $contents = File::get(resource_path('views/lab/examples/actions/command.blade.php'));
+
+        $this->assertFalse(
+            (bool) preg_match('/<flux:command\s[^>]*placeholder=/i', $contents),
+            'placeholder must be declared on <flux:command.input>, not <flux:command>.',
+        );
+        $this->assertStringContainsString('<flux:command.input placeholder="Search components…"', $contents);
+    }
+
+    public function test_actions_component_uses_flux_toast(): void
+    {
+        $contents = File::get(resource_path('views/pages/components/⚡actions.blade.php'));
+
+        $this->assertStringContainsString('Flux::toast(', $contents);
+        $this->assertFalse(
+            (bool) preg_match('/\$this->dispatch\([\'"]toast[\'"]/i', $contents),
+            '⚡actions.blade.php notify() should use Flux::toast instead of broken $this->dispatch("toast", ...).',
+        );
+    }
+
+    public function test_actions_component_loading_button_calls_valid_component_method(): void
+    {
+        Livewire::test('pages::components.actions')
+            ->call('simulateAsyncAction')
+            ->assertOk();
+
+        $contents = File::get(resource_path('views/pages/components/⚡actions.blade.php'));
+        $this->assertFalse(
+            (bool) preg_match('/wire:click=[\'"]\$sleep/i', $contents),
+            'actions page should not call non-existent $sleep() magic action.',
+        );
+        $this->assertStringContainsString('wire:click="simulateAsyncAction"', $contents);
+    }
 }

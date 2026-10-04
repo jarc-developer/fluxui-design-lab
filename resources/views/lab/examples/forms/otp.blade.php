@@ -1,21 +1,9 @@
 <div class="grid gap-4 md:grid-cols-2">
-    <div class="flex flex-col gap-2">
-        <flux:label>Six digits</flux:label>
-        <flux:otp length="6" />
-    </div>
+    <flux:otp length="6" label="Six digits" />
 
-    <div class="flex flex-col gap-2">
-        <flux:label>Four digits</flux:label>
-        <flux:otp length="4" />
-    </div>
+    <flux:otp length="4" label="Four digits" />
 
-    <div class="flex flex-col gap-2">
-        <flux:label>private — never sent over the wire</flux:label>
-        <flux:otp length="6" private />
-    </div>
+    <flux:otp length="6" label="private — never sent over the wire" private />
 
-    <div class="flex flex-col gap-2">
-        <flux:label>Default length</flux:label>
-        <flux:otp />
-    </div>
+    <flux:otp label="Default length" />
 </div>

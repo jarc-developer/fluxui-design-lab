@@ -44,7 +44,7 @@
         </flux:text>
 
         <div class="grid gap-4 md:grid-cols-3">
-            <flux:select wire:model="licenses" variant="custom" label="check">
+            <flux:select wire:model="licenses" variant="custom" label="check (default)">
                 <flux:select.button placeholder="Single…" />
                 <flux:select.options>
                     <flux:select.option value="mit">MIT</flux:select.option>
@@ -52,18 +52,16 @@
                 </flux:select.options>
             </flux:select>
 
-            <flux:select wire:model="licenses" variant="custom" label="checkbox">
+            <flux:select wire:model="licenses" variant="custom" label="checkbox" indicator="checkbox">
                 <flux:select.button placeholder="Multiple…" />
-                <flux:select.indicator variant="checkbox" />
                 <flux:select.options>
                     <flux:select.option value="mit">MIT</flux:select.option>
                     <flux:select.option value="apache">Apache-2.0</flux:select.option>
                 </flux:select.options>
             </flux:select>
 
-            <flux:select wire:model="licenses" variant="custom" label="radio">
+            <flux:select wire:model="licenses" variant="custom" label="radio" indicator="radio">
                 <flux:select.button placeholder="One only…" />
-                <flux:select.indicator variant="radio" />
                 <flux:select.options>
                     <flux:select.option value="mit">MIT</flux:select.option>
                     <flux:select.option value="apache">Apache-2.0</flux:select.option>

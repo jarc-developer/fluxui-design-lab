@@ -1,5 +1,6 @@
 <?php
 
+use Flux\Flux;
 use Illuminate\Support\Facades\File;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -16,7 +17,12 @@ new #[Title('Actions & Navigation')] class extends Component {
 
     public function notify(): void
     {
-        $this->dispatch('toast', type: 'success', title: 'Saved', description: 'The lab state was updated.');
+        Flux::toast(text: 'The lab state was updated.', heading: 'Saved', variant: 'success');
+    }
+
+    public function simulateAsyncAction(): void
+    {
+        usleep(1000000);
     }
 
     /**
@@ -74,13 +80,14 @@ new #[Title('Actions & Navigation')] class extends Component {
         <x-lab.section heading="Buttons"
                       subheading="Every variant, size, colour and icon pairing.">
             <div class="flex flex-wrap items-center gap-2">
-                <flux:button>Primary</flux:button>
-                <flux:button color="red">Destructive</flux:button>
+                <flux:button variant="primary">Primary</flux:button>
+                <flux:button variant="filled">Filled</flux:button>
+                <flux:button>Outline (default)</flux:button>
+                <flux:button variant="danger">Danger</flux:button>
+                <flux:button variant="ghost">Ghost</flux:button>
+                <flux:button variant="subtle">Subtle</flux:button>
                 <flux:button color="green">Success</flux:button>
                 <flux:button color="zinc">Neutral</flux:button>
-                <flux:button variant="ghost">Ghost</flux:button>
-                <flux:button variant="primary">Filled</flux:button>
-                <flux:button variant="subtle">Soft</flux:button>
             </div>
 
             <div class="flex flex-wrap items-center gap-2">
@@ -93,7 +100,8 @@ new #[Title('Actions & Navigation')] class extends Component {
                 <flux:button icon="plus">New component</flux:button>
                 <flux:button icon="trash" color="red" title="Delete" />
                 <flux:button wire:click="notify" icon="check" variant="subtle">Toast</flux:button>
-                <flux:button loading wire:click="$sleep(3000)">Loading</flux:button>
+                <flux:button wire:click="simulateAsyncAction">Interactive loading</flux:button>
+                <flux:button loading>Static loading</flux:button>
                 <flux:button disabled>Disabled</flux:button>
                 <flux:button href="{{ route('layouts') }}" wire:navigate>As a link</flux:button>
             </div>
@@ -106,12 +114,29 @@ new #[Title('Actions & Navigation')] class extends Component {
         <x-lab.section heading="Menus & dropdowns"
                       subheading="Dropdown triggers, nested menus and command palettes.">
             <div class="flex flex-wrap items-center gap-2">
-                <flux:dropdown placement="bottom" align="start">
+                <flux:dropdown position="bottom" align="start">
                     <flux:button icon="bars-3" icon:trailing="chevron-down">Options</flux:button>
                     <flux:menu>
-                        <flux:menu.item icon="pencil-square">Edit</flux:menu.item>
-                        <flux:menu.item icon="document-duplicate">Duplicate</flux:menu.item>
-                        <flux:menu.item icon="trash" variant="danger">Delete</flux:menu.item>
+                        <flux:menu.item icon="pencil-square" kbd="⌘E">Edit</flux:menu.item>
+                        <flux:menu.item icon="document-duplicate" kbd="⌘D">Duplicate</flux:menu.item>
+
+                        <flux:menu.separator />
+
+                        <flux:menu.submenu heading="Sort by">
+                            <flux:menu.radio.group>
+                                <flux:menu.radio checked>Name</flux:menu.radio>
+                                <flux:menu.radio>Date modified</flux:menu.radio>
+                            </flux:menu.radio.group>
+                        </flux:menu.submenu>
+
+                        <flux:menu.submenu heading="Filter">
+                            <flux:menu.checkbox checked>Active</flux:menu.checkbox>
+                            <flux:menu.checkbox>Archived</flux:menu.checkbox>
+                        </flux:menu.submenu>
+
+                        <flux:menu.separator />
+
+                        <flux:menu.item icon="trash" variant="danger" kbd="⌘⌫">Delete</flux:menu.item>
                     </flux:menu>
                 </flux:dropdown>
 
@@ -149,8 +174,8 @@ new #[Title('Actions & Navigation')] class extends Component {
         <x-lab.section heading="Popovers & tooltips"
                       subheading="Lightweight contextual surfaces.">
             <x-lab.example src="lab.examples.actions.popover"
-                           title="flux:context + flux:popover"
-                           subheading="flux:popover is a positioned surface, not a controller. flux:context anchors it, and the pair is toggled by a click anywhere in the context." />
+                           title="flux:popover & flux:context"
+                           subheading="Popovers are rich floating panels hosted inside flux:dropdown. Right-click context menus are wrapped by flux:context." />
 
             <x-lab.example src="lab.examples.actions.tooltips"
                            title="Tooltip variants"
@@ -168,9 +193,9 @@ new #[Title('Actions & Navigation')] class extends Component {
                            subheading="heading, text, link and a free action area, on top of the success, danger and secondary variants." />
 
             <div class="flex flex-wrap items-center gap-2">
-                <flux:flag square color="zinc">DL</flux:flag>
-                <flux:flag color="zinc">Laravel</flux:flag>
-                <flux:flag color="red" variant="outline">Pro</flux:flag>
+                <flux:badge square color="zinc">DL</flux:badge>
+                <flux:badge color="zinc">Laravel</flux:badge>
+                <flux:badge color="red" variant="outline">Pro</flux:badge>
             </div>
         </x-lab.section>
 

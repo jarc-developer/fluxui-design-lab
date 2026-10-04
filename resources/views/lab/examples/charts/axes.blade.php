@@ -1,20 +1,38 @@
 <div class="flex flex-col gap-8">
     <div>
-        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">grid, axis line, tick marks and tick labels</flux:text>
+        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">tick-count asks for a number of labels; tick-start and tick-end pin the ends of the range</flux:text>
 
         <flux:chart :value="$usage" class="h-64 max-w-2xl">
             <flux:chart.svg>
-                <flux:chart.area field="web" class="text-blue-200/50 dark:text-blue-400/30" />
+                <flux:chart.line field="web" class="text-blue-500" />
+
+                <flux:chart.axis axis="x" field="label" tick-count="3">
+                    <flux:chart.axis.tick />
+                    <flux:chart.axis.line />
+                </flux:chart.axis>
+
+                <flux:chart.axis axis="y" tick-count="5" tick-start="0" tick-end="450">
+                    <flux:chart.axis.grid />
+                    <flux:chart.axis.tick />
+                </flux:chart.axis>
+            </flux:chart.svg>
+        </flux:chart>
+    </div>
+
+    <div>
+        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">interval walks a value axis in fixed steps, and tick-prefix and tick-suffix label each one</flux:text>
+
+        <flux:chart :value="$usage" class="h-64 max-w-2xl">
+            <flux:chart.svg>
+                <flux:chart.bar field="web" radius="4" class="text-blue-500" />
 
                 <flux:chart.axis axis="x" field="label">
-                    <flux:chart.axis.line />
-                    <flux:chart.axis.mark />
                     <flux:chart.axis.tick />
+                    <flux:chart.axis.line />
                 </flux:chart.axis>
 
-                <flux:chart.axis axis="y" :format="['useGrouping' => true]">
+                <flux:chart.axis axis="y" interval="50" tick-prefix="~$" tick-suffix="k">
                     <flux:chart.axis.grid />
-                    <flux:chart.axis.line />
                     <flux:chart.axis.tick />
                 </flux:chart.axis>
             </flux:chart.svg>
@@ -22,27 +40,61 @@
     </div>
 
     <div>
-        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">tick-values on the x axis</flux:text>
+        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">tick-values thins the index axis to just the labels you name</flux:text>
 
         <flux:chart :value="$usage" class="h-64 max-w-2xl">
             <flux:chart.svg>
-                <flux:chart.bar field="web" class="text-blue-500" />
+                <flux:chart.bar field="web" radius="4" class="text-blue-500" />
 
-                <flux:chart.axis axis="x" field="label" :tick-values="['Jan', 'Mar', 'May']" />
-                <flux:chart.axis axis="y" />
+                <flux:chart.axis axis="x" field="label" :tick-values="['Jan', 'Mar', 'May']">
+                    <flux:chart.axis.tick />
+                    <flux:chart.axis.line />
+                </flux:chart.axis>
+
+                <flux:chart.axis axis="y">
+                    <flux:chart.axis.grid />
+                    <flux:chart.axis.tick />
+                </flux:chart.axis>
             </flux:chart.svg>
         </flux:chart>
     </div>
 
     <div>
-        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">horizontal — the axes swap, so the index field moves to the y axis</flux:text>
+        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">position moves the index axis to the top and the value axis to the right</flux:text>
 
-        <flux:chart :value="$usage" horizontal class="h-72 max-w-2xl">
+        <flux:chart :value="$usage" class="h-64 max-w-2xl">
             <flux:chart.svg>
-                <flux:chart.bar field="web" class="text-blue-500" />
+                <flux:chart.line field="web" class="text-blue-500" />
 
-                <flux:chart.axis axis="x" />
-                <flux:chart.axis axis="y" field="label" />
+                <flux:chart.axis axis="x" field="label" position="top">
+                    <flux:chart.axis.tick />
+                    <flux:chart.axis.line />
+                </flux:chart.axis>
+
+                <flux:chart.axis axis="y" position="right">
+                    <flux:chart.axis.grid />
+                    <flux:chart.axis.tick />
+                </flux:chart.axis>
+            </flux:chart.svg>
+        </flux:chart>
+    </div>
+
+    <div>
+        <flux:text size="xs" class="mb-1 font-medium text-zinc-500">format is a plain Intl option bag, so anything Intl accepts works — but it has to be an array, never a JSON string</flux:text>
+
+        <flux:chart :value="$usage" class="h-64 max-w-2xl">
+            <flux:chart.svg>
+                <flux:chart.bar field="web" radius="4" class="text-blue-500" />
+
+                <flux:chart.axis axis="x" field="label">
+                    <flux:chart.axis.tick />
+                    <flux:chart.axis.line />
+                </flux:chart.axis>
+
+                <flux:chart.axis axis="y" :format="['useGrouping' => true, 'maximumFractionDigits' => 0]">
+                    <flux:chart.axis.grid />
+                    <flux:chart.axis.tick />
+                </flux:chart.axis>
             </flux:chart.svg>
         </flux:chart>
     </div>

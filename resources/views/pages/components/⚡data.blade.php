@@ -227,8 +227,18 @@ new #[Title('Data Display')] class extends Component {
             <flux:chart :value="$chartSeries" class="h-64 max-w-2xl">
                 <flux:chart.svg>
                     <flux:chart.line field="usage" class="text-blue-500" />
-                    <flux:chart.axis axis="x" field="label" />
-                    <flux:chart.axis axis="y" />
+
+                    <flux:chart.axis axis="x" field="label">
+                        <flux:chart.axis.tick />
+                        <flux:chart.axis.line />
+                    </flux:chart.axis>
+
+                    <flux:chart.axis axis="y">
+                        <flux:chart.axis.grid />
+                        <flux:chart.axis.tick />
+                    </flux:chart.axis>
+
+                    <flux:chart.cursor />
                 </flux:chart.svg>
 
                 <flux:chart.tooltip>

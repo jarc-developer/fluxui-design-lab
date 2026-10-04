@@ -7,6 +7,11 @@
 ])
 
 @php
+    // Blade hands `snippet="false"` over as the string "false", which is truthy
+    // in PHP, so the documented string form has to be normalised before it is
+    // tested. filter_var accepts both that and a real boolean.
+    $snippet = filter_var($snippet, FILTER_VALIDATE_BOOLEAN);
+
     $source = $snippet
         ? trim(Illuminate\Support\Facades\File::get(resource_path('views/'.str_replace('.', '/', $src).'.blade.php')))
         : null;
