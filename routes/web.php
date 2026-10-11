@@ -32,6 +32,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::livewire('theme', 'pages::theme')->name('theme');
     Route::livewire('theme/generator', 'pages::theme-generator')->name('theme.generator');
     Route::livewire('layouts', 'pages::layouts')->name('layouts');
+
+    // Views Generator
+    Route::livewire('views-generator', 'pages::views-generator')->name('views.generator');
 });
 
 require __DIR__.'/settings.php';

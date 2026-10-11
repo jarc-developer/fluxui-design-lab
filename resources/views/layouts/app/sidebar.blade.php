@@ -10,7 +10,42 @@
                 <flux:sidebar.collapse class="lg:hidden" />
             </flux:sidebar.header>
 
-            <flux:sidebar.nav>
+            <x-workspace-switcher />
+
+            @if (request()->routeIs('views.generator*'))
+                <flux:sidebar.nav>
+                    <flux:sidebar.group :heading="__('Generator')">
+                        <flux:sidebar.item icon="sparkles" :href="route('views.generator')" :current="request()->routeIs('views.generator') && ! request()->has('layout')" wire:navigate>
+                            {{ __('Canvas Studio') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+
+                    <flux:sidebar.group :heading="__('Suggested Layouts')">
+                        <flux:sidebar.item icon="chart-bar" :href="route('views.generator', ['layout' => 'saas-dashboard'])" :current="request()->get('layout') === 'saas-dashboard' || (! request()->has('layout') && request()->routeIs('views.generator'))" wire:navigate>
+                            {{ __('SaaS Dashboard') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="table-cells" :href="route('views.generator', ['layout' => 'data-crud'])" :current="request()->get('layout') === 'data-crud'" wire:navigate>
+                            {{ __('Data CRUD & Table') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="rectangle-stack" :href="route('views.generator', ['layout' => 'kanban'])" :current="request()->get('layout') === 'kanban'" wire:navigate>
+                            {{ __('Project Kanban') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="cog-6-tooth" :href="route('views.generator', ['layout' => 'settings'])" :current="request()->get('layout') === 'settings'" wire:navigate>
+                            {{ __('Account & Settings') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+
+                    <flux:sidebar.group :heading="__('Navigation')">
+                        <flux:sidebar.item icon="paint-brush" :href="route('theme.generator')" wire:navigate>
+                            {{ __('Theme Generator') }}
+                        </flux:sidebar.item>
+                        <flux:sidebar.item icon="beaker" :href="route('dashboard')" wire:navigate>
+                            {{ __('Back to Design Lab') }}
+                        </flux:sidebar.item>
+                    </flux:sidebar.group>
+                </flux:sidebar.nav>
+            @else
+                <flux:sidebar.nav>
                 <flux:sidebar.group :heading="__('Platform')">
                     <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
                         {{ __('Dashboard') }}
@@ -68,6 +103,7 @@
                     </flux:sidebar.item>
                 </flux:sidebar.group>
             </flux:sidebar.nav>
+            @endif
 
             <flux:sidebar.spacer />
 
