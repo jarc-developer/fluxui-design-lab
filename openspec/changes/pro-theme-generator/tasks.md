@@ -39,3 +39,9 @@
 
 - [x] 7.1 Rewrite `tests/Feature/ThemeGeneratorTest.php` for the v2 flow (save/load/activate/delete, share link round-trip, v1 upcast, silk import, synthesis contrast, pill radius) and verify `docker exec design_lab_app php artisan test` is green
 - [x] 7.2 Manually import the daisyUI silk link at `/theme/generator`, activate it, and verify cream surfaces, lime-on-ink buttons, pill selectors, pastel statuses, and a coherent auto dark scheme on real pages
+
+## 8. Post-review fixes (import dark scheme)
+
+- [x] 8.1 Import defaults to `darkMode: auto` (neutral no longer stamped onto dark zinc 900/950 — it flattened dark surfaces when neutral equals base-content, e.g. daisyUI emerald) and verify the silk unit test asserts auto + neutral in the dropped report
+- [x] 8.2 Add opt-in neutral path: `DaisyThemeMapper::map($payload, useNeutralForDark: true)` seeds a manual dark ramp from neutral's tint, pinning exact neutral at its nearest step with darker steps derived, and verify a unit test asserts no flat 800/900/950 run
+- [x] 8.3 Add the "Use daisyUI neutral for the dark scheme" checkbox to the import modal, wired to the mapper option, and verify the feature suite stays green

@@ -78,15 +78,14 @@ Parsing needs an oklch string reader: add `Color::fromOklch(string)` (the class 
 |---|---|
 | `base-100/200/300` | light `zinc.50/100/200`; whole ramp pre-filled from base-100 hue/chroma, then those 3 steps overwritten with exact values |
 | `base-content` | light `zinc.800` |
-| `neutral` | dark `zinc.900` and `zinc.950` seed (daisyUI light themes smuggle dark surfaces here) |
-| `neutral-content` | dark `zinc.100` |
 | `primary` / `primary-content` | light `accent` / `accentForeground` |
 | `info/success/warning/error` | status seeds |
 | `radius-selector/field/box` | radius (rem, free) |
 | `size-field` | spacing |
+| `neutral` / `neutral-content` | **opt-in only** (import checkbox): seeds a manual dark scheme — a fresh ramp from neutral's tint, exact neutral pinned at its nearest step, darker steps derived. Off by default: stamping neutral onto dark zinc 900/950 collided with the `base-content` pin at 800 (both are often the same colour, e.g. daisyUI emerald), flattening all dark surfaces to one value |
 | `secondary`, `accent`, `*-content` for them, `--border`, `--depth`, `--noise` | **dropped → import report** |
 
-Unmapped dark slots fall through to synthesis (D2).
+Unmapped dark slots fall through to synthesis (D2), which is the default dark mode for imports.
 
 ### D5: UI — slots with suggestion engine
 

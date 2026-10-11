@@ -41,10 +41,36 @@ class DaisyThemeMapperTest extends TestCase
         $this->assertSame('#efc375', $tokens->light->status['warning']);
         $this->assertSame('#ff8482', $tokens->light->status['danger']);
 
-        // neutral carried silk's dark surfaces, so the dark scheme is manual.
+        // By default the dark scheme is synthesized, not taken from neutral.
+        $this->assertSame('auto', $tokens->darkMode);
+        $this->assertNull($tokens->dark);
+        $this->assertContains('--color-neutral', $result['dropped']);
+        $this->assertContains('--color-neutral-content', $result['dropped']);
+
+        // The synthesized dark side still meets contrast requirements.
+        $dark = $tokens->darkScheme();
+        $contrast = \App\Support\Theme\Color::fromHex($dark->accentForeground)
+            ->contrastWith(\App\Support\Theme\Color::fromHex($dark->accent));
+        $this->assertGreaterThanOrEqual(4.5, $contrast);
+    }
+
+    public function test_neutral_option_seeds_a_manual_dark_ramp_without_collapsing(): void
+    {
+        $result = DaisyThemeMapper::map(self::SILK_CODE, useNeutralForDark: true);
+
+        $tokens = ThemeTokens::fromArray($result['tokens']);
+
         $this->assertSame('manual', $tokens->darkMode);
-        $this->assertSame('#161616', $tokens->dark?->zinc['900']);
-        $this->assertSame('#c2bdb9', $tokens->dark?->zinc['100']);
+        $this->assertNotNull($tokens->dark);
+        $this->assertNotContains('--color-neutral', $result['dropped']);
+
+        // Exact neutral pinned at 900, 950 derived darker, 100 from neutral-content.
+        $this->assertSame('#161616', $tokens->dark->zinc['900']);
+        $this->assertSame('#c2bdb9', $tokens->dark->zinc['100']);
+        $this->assertNotSame($tokens->dark->zinc['900'], $tokens->dark->zinc['950']);
+
+        // No flat run: the three dark surface steps are all distinct.
+        $this->assertNotSame($tokens->dark->zinc['800'], $tokens->dark->zinc['900']);
     }
 
     public function test_import_accepts_a_full_theme_generator_url(): void

@@ -79,12 +79,17 @@ A theme SHALL encode to a URL-safe share code as base64url(zlib(JSON)) and decod
 
 ### Requirement: daisyUI theme import
 
-The engine SHALL accept a daisyUI theme-generator share code or daisyUI theme JSON and map it into the declarative model: `base-100/200/300` to light neutral steps 50/100/200 (with the ramp seeded from base-100's tint), `base-content` to the light body-text step, `neutral` and `neutral-content` to dark-scheme surface and text slots, `primary` to the light accent, `primary-content` to the light accent-foreground, `info/success/warning/error` to status seeds, `radius-selector/field/box` to radius values, and `size-field` to spacing. daisyUI fields with no Flux equivalent (secondary, accent roles, border width, depth, noise) SHALL be dropped, and the import SHALL report which fields were dropped. Dark-scheme values not derivable from `neutral`/`neutral-content` SHALL be auto-synthesized.
+The engine SHALL accept a daisyUI theme-generator share code or daisyUI theme JSON and map it into the declarative model: `base-100/200/300` to light neutral steps 50/100/200 (with the ramp seeded from base-100's tint), `base-content` to the light body-text step, `primary` to the light accent, `primary-content` to the light accent-foreground, `info/success/warning/error` to status seeds, `radius-selector/field/box` to radius values, and `size-field` to spacing. daisyUI fields with no Flux equivalent (secondary, accent roles, border width, depth, noise) SHALL be dropped, and the import SHALL report which fields were dropped. The dark scheme SHALL be synthesized (`auto`) by default; only when the caller opts into a manual dark scheme SHALL `neutral` and `neutral-content` be used — seeding a fresh dark neutral ramp from neutral's tint and pinning the exact neutral colour at its nearest lightness step, with darker steps derived so the ramp never flattens.
 
 #### Scenario: Silk theme import
 
-- **WHEN** the daisyUI "silk" share code is imported
-- **THEN** the theme has warm cream surfaces (zinc 50–200), a near-black indigo accent, an explicit lime accent-foreground, a 2rem selector radius, pastel status seeds, and a synthesized dark scheme, and the import report lists secondary, accent, border, depth, and noise as dropped
+- **WHEN** the daisyUI "silk" share code is imported with default options
+- **THEN** the theme has warm cream surfaces (zinc 50–200), a near-black indigo accent, an explicit lime accent-foreground, a 2rem selector radius, pastel status seeds, and a synthesized (`auto`) dark scheme, and the import report lists secondary, accent, neutral, neutral-content, border, depth, and noise as dropped
+
+#### Scenario: Neutral dark scheme opt-in
+
+- **WHEN** a daisyUI theme with `neutral` and `neutral-content` is imported with the manual-dark option enabled
+- **THEN** the theme's dark scheme is manual, the dark neutral ramp is seeded from neutral's tint with the exact neutral colour pinned at its nearest step, darker steps remain distinct from it, and neutral-content maps to the dark text step
 
 #### Scenario: Invalid daisyUI payload rejected
 

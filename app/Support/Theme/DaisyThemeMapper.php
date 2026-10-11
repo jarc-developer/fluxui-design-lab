@@ -10,6 +10,11 @@ namespace App\Support\Theme;
  * wraps deflate in a zlib header while we use raw deflate, so both are tried.
  * daisyUI concepts with no Flux equivalent (secondary/accent roles, border
  * width, depth, noise) are dropped and reported to the caller.
+ *
+ * The dark scheme is synthesized (auto) by default. With $useNeutralForDark the
+ * daisyUI neutral/neutral-content pair seeds a manual dark scheme instead —
+ * neutral grows a fresh dark ramp rather than stamping single steps, so dark
+ * surfaces keep their separation.
  */
 final class DaisyThemeMapper
 {
@@ -31,7 +36,7 @@ final class DaisyThemeMapper
     /**
      * @return array{name: string, tokens: array<string, mixed>, dropped: list<string>}|null
      */
-    public static function map(string $payload): ?array
+    public static function map(string $payload, bool $useNeutralForDark = false): ?array
     {
         $theme = self::extract($payload);
 
@@ -54,7 +59,10 @@ final class DaisyThemeMapper
                     continue;
                 }
 
-                if (in_array($key, self::DROPPED, true) || ! in_array($key, self::MAPPED, true)) {
+                $mapped = in_array($key, self::MAPPED, true)
+                    && ($useNeutralForDark || ! in_array($key, ['--color-neutral', '--color-neutral-content'], true));
+
+                if (! $mapped) {
                     $dropped[] = $key;
 
                     continue;
@@ -73,7 +81,7 @@ final class DaisyThemeMapper
 
         return [
             'name' => is_string($theme['name'] ?? null) ? $theme['name'] : 'DaisyUI import',
-            'tokens' => self::tokens($colors, $theme),
+            'tokens' => self::tokens($colors, $theme, $useNeutralForDark),
             'dropped' => $dropped,
         ];
     }
@@ -124,7 +132,7 @@ final class DaisyThemeMapper
      * @param  array<string, mixed>  $theme
      * @return array<string, mixed>
      */
-    private static function tokens(array $colors, array $theme): array
+    private static function tokens(array $colors, array $theme, bool $useNeutralForDark): array
     {
         $base100 = $colors['--color-base-100'];
 
@@ -163,20 +171,34 @@ final class DaisyThemeMapper
             status: $status,
         );
 
-        // daisyUI light themes carry their dark surfaces in `neutral`; honour
-        // them with a manual dark scheme, otherwise synthesize everything.
+        // Dark: synthesized by default. Opt-in: daisyUI's neutral pair seeds a
+        // manual dark scheme — a fresh ramp from neutral's tint (so surfaces
+        // keep their separation), pinning the exact neutral at its nearest step.
         $dark = null;
         $darkMode = 'auto';
         $neutral = $colors['--color-neutral'] ?? null;
         $neutralContent = $colors['--color-neutral-content'] ?? null;
 
-        if ($neutral !== null || $neutralContent !== null) {
+        if ($useNeutralForDark && ($neutral !== null || $neutralContent !== null)) {
             $synthesized = DarkScheme::synthesize($light);
+
             $darkZinc = $synthesized->zinc;
 
             if ($neutral !== null) {
-                $darkZinc['900'] = $neutral->toHex();
-                $darkZinc['950'] = $neutral->toHex();
+                $darkZinc = array_map(
+                    fn (Color $step): string => $step->toHex(),
+                    Palette::neutral($neutral->h, min(max($neutral->c, 0.004), 0.08)),
+                );
+
+                // Pin the exact neutral at its nearest lightness step, and keep
+                // everything below it darker so the ramp never flattens.
+                $pin = $neutral->l >= 0.18 ? '900' : '950';
+                $darkZinc[$pin] = $neutral->toHex();
+
+                if ($pin === '900') {
+                    $darker = (new Color($neutral->l * 0.6, $neutral->c, $neutral->h))->toHex();
+                    $darkZinc['950'] = $darker;
+                }
             }
 
             if ($neutralContent !== null) {

@@ -40,6 +40,9 @@ new #[Title('Theme Generator')] class extends Component {
     /** daisyUI fields dropped by the last import, shown as a report. */
     public array $importReport = [];
 
+    /** Import option: seed the dark scheme from daisyUI's neutral colours. */
+    public bool $importNeutralDark = false;
+
     public float $fillHue = 0;
 
     public float $fillChroma = 0;
@@ -390,7 +393,7 @@ new #[Title('Theme Generator')] class extends Component {
         }
 
         // 1. daisyUI share URL, code or theme JSON
-        $daisy = DaisyThemeMapper::map($payload);
+        $daisy = DaisyThemeMapper::map($payload, $this->importNeutralDark);
         if ($daisy !== null) {
             $tokens = ThemeTokens::tryFrom($daisy['tokens']);
             if ($tokens !== null) {
@@ -999,6 +1002,12 @@ new #[Title('Theme Generator')] class extends Component {
             <flux:field>
                 <flux:textarea wire:model.defer="importPayload" rows="6" placeholder="https://daisyui.com/theme-generator/#theme=..." />
             </flux:field>
+
+            <flux:checkbox
+                wire:model="importNeutralDark"
+                label="Use daisyUI neutral for the dark scheme"
+                description="Off: the dark scheme is synthesized automatically. On: a manual dark scheme is seeded from the theme's neutral colours."
+            />
 
             <div class="flex items-center justify-end gap-2">
                 <flux:modal.close>
