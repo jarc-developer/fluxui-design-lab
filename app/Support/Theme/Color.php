@@ -27,6 +27,24 @@ final readonly class Color
         public float $h,
     ) {}
 
+    /**
+     * Parse a CSS oklch() colour, e.g. `oklch(97% 0.0035 67.78)` — the format
+     * daisyUI themes are written in. Alpha is rejected: themes are opaque.
+     */
+    public static function fromOklch(string $oklch): self
+    {
+        if (! preg_match('/^oklch\(\s*([0-9.]+%?|none)\s+([0-9.]+|none)\s+(-?[0-9.]+|none)\s*\)$/i', trim($oklch), $m)) {
+            throw new InvalidArgumentException("Invalid oklch colour [{$oklch}].");
+        }
+
+        // Lightness may be a percentage or a plain 0–1 number.
+        $l = $m[1] === 'none' ? 0.0 : (str_ends_with($m[1], '%') ? ((float) $m[1]) / 100 : (float) $m[1]);
+        $c = $m[2] === 'none' ? 0.0 : (float) $m[2];
+        $h = $m[3] === 'none' ? 0.0 : fmod((float) $m[3] + 360, 360);
+
+        return new self(max(0.0, min(1.0, $l)), max(0.0, $c), $h);
+    }
+
     public static function fromHex(string $hex): self
     {
         $hex = ltrim(strtolower(trim($hex)), '#');

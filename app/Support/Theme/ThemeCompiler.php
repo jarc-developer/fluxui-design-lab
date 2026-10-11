@@ -9,6 +9,11 @@ namespace App\Support\Theme;
  * `border-radius: var(--radius-lg)`, `.p-4` is `calc(var(--spacing) * 4)`,
  * `.bg-red-500` is `var(--color-red-500)`), so re-declaring those variables
  * re-themes the whole app at runtime without rebuilding the stylesheet.
+ *
+ * Every colour comes straight from the theme's explicit slots; the only
+ * derivation left is status seeds growing into full ramps (Flux consumes
+ * palettes, not single colours) and, under the auto dark-mode policy, the
+ * dark scheme synthesis in DarkScheme.
  */
 final class ThemeCompiler
 {
@@ -78,25 +83,25 @@ final class ThemeCompiler
     }
 
     /**
-     * The generated ramps as hex, for swatches.
+     * The theme's ramps as hex, for swatches.
      *
      * @return array<string, array<int|string, string>>
      */
     public function ramps(ThemeTokens $tokens): array
     {
         $ramps = [
-            'accent' => Palette::fromSeed(Color::fromHex($tokens->accentLight)),
-            'base' => Palette::neutral($tokens->baseHue, $tokens->baseChroma),
+            'accent' => Palette::fromSeed(Color::fromHex($tokens->light->accent)),
+            'base' => $tokens->light->zinc,
         ];
 
-        foreach ($tokens->status as $status => $seed) {
+        foreach ($tokens->light->status as $status => $seed) {
             if ($seed !== null) {
                 $ramps[$status] = Palette::fromSeed(Color::fromHex($seed));
             }
         }
 
         return array_map(
-            fn (array $ramp): array => array_map(fn (Color $color): string => $color->toHex(), $ramp),
+            fn (array $ramp): array => array_map(fn (mixed $color): string => $color instanceof Color ? $color->toHex() : $color, $ramp),
             $ramps,
         );
     }
@@ -106,31 +111,8 @@ final class ThemeCompiler
      */
     public function variables(ThemeTokens $tokens): array
     {
-        $accentLight = Color::fromHex($tokens->accentLight);
-        $accentDark = Color::fromHex($tokens->accentDark);
-        $base = Palette::neutral($tokens->baseHue, $tokens->baseChroma);
-
-        $light = [
-            '--color-accent' => $accentLight->toHex(),
-            '--color-accent-content' => $this->accentContent($accentLight, Color::fromHex('#ffffff'), -0.06),
-            '--color-accent-foreground' => $tokens->accentForegroundLight ?? $accentLight->readableForeground()->toHex(),
-        ];
-
-        foreach ($base as $step => $color) {
-            $light["--color-zinc-{$step}"] = $color->toHex();
-        }
-
-        foreach ($tokens->status as $status => $seed) {
-            if ($seed === null) {
-                continue;
-            }
-
-            foreach (Palette::fromSeed(Color::fromHex($seed)) as $step => $color) {
-                foreach (self::STATUS_PALETTES[$status] as $palette) {
-                    $light["--color-{$palette}-{$step}"] = $color->toHex();
-                }
-            }
-        }
+        $light = $this->schemeVariables($tokens->light);
+        $dark = $this->schemeVariables($tokens->darkScheme());
 
         $light += [
             '--radius-selector' => $this->rem($tokens->radiusSelector),
@@ -145,36 +127,37 @@ final class ThemeCompiler
             '--font-sans' => $this->fontStack($tokens),
         ];
 
-        /** @var Color $baseDark */
-        $baseDark = $base['800'] ?? $base[800] ?? Color::fromHex('#262626');
-
-        $dark = [
-            '--color-accent' => $accentDark->toHex(),
-            '--color-accent-content' => $this->accentContent($accentDark, $baseDark, 0.08),
-            '--color-accent-foreground' => $tokens->accentForegroundDark ?? $accentDark->readableForeground()->toHex(),
-        ];
-
         return ['light' => $light, 'dark' => $dark];
     }
 
     /**
-     * The accent as used for text (links, icons) on the page background. Near-greys
-     * stay as they are, like Flux's own default; colours are nudged away from the
-     * background until they reach WCAG AA (4.5:1).
+     * @return array<string, string>
      */
-    private function accentContent(Color $accent, Color $background, float $nudge): string
+    private function schemeVariables(ThemeScheme $scheme): array
     {
-        if ($accent->c < 0.03) {
-            return $accent->toHex();
+        $vars = [
+            '--color-accent' => $scheme->accent,
+            '--color-accent-content' => $scheme->accentContent,
+            '--color-accent-foreground' => $scheme->accentForeground,
+        ];
+
+        foreach ($scheme->zinc as $step => $hex) {
+            $vars["--color-zinc-{$step}"] = $hex;
         }
 
-        $content = $accent->withLightness($accent->l + $nudge);
+        foreach ($scheme->status as $status => $seed) {
+            if ($seed === null) {
+                continue;
+            }
 
-        for ($i = 0; $i < 40 && $content->contrastWith($background) < 4.5; $i++) {
-            $content = $content->withLightness($content->l + ($nudge < 0 ? -0.02 : 0.02));
+            foreach (Palette::fromSeed(Color::fromHex($seed)) as $step => $color) {
+                foreach (self::STATUS_PALETTES[$status] as $palette) {
+                    $vars["--color-{$palette}-{$step}"] = $color->toHex();
+                }
+            }
         }
 
-        return $content->toHex();
+        return $vars;
     }
 
     private function fontStack(ThemeTokens $tokens): string

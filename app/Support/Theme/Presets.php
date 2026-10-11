@@ -2,8 +2,14 @@
 
 namespace App\Support\Theme;
 
+use App\Support\Theme\Legacy\LegacyThemeTokens;
+
 /**
  * Starting points for the generator. They are also seeded as editable themes.
+ *
+ * Presets are defined as compact v1-style seeds and returned as precompiled v2
+ * token arrays via the legacy upcast, so their appearance is byte-identical to
+ * what the parametric generator produced.
  */
 final class Presets
 {
@@ -12,9 +18,9 @@ final class Presets
      */
     public static function all(): array
     {
-        $defaults = ThemeTokens::defaults();
+        $defaults = LegacyThemeTokens::defaults();
 
-        return [
+        return self::compile([
             'flux-default' => [
                 'name' => 'Flux default',
                 'tokens' => $defaults,
@@ -69,15 +75,7 @@ final class Presets
                     'font' => 'nunito',
                 ]),
             ],
-        ];
-    }
-
-    /**
-     * @return array<string, mixed>|null
-     */
-    public static function tokens(string $key): ?array
-    {
-        return self::all()[$key]['tokens'] ?? null;
+        ]);
     }
 
     /**
@@ -93,10 +91,10 @@ final class Presets
         $light = new Color(random_int(50, 60) / 100, $chroma, $hue);
         $dark = new Color(random_int(70, 78) / 100, $chroma * 0.85, $hue);
 
-        $radius = ThemeTokens::RADIUS_STEPS;
+        $radius = LegacyThemeTokens::RADIUS_STEPS;
         $field = $radius[random_int(0, 3)];
 
-        return self::with(ThemeTokens::defaults(), [
+        return ThemeTokens::fromArray(self::with(LegacyThemeTokens::defaults(), [
             'accent' => ['light' => $light->toHex(), 'dark' => $dark->toHex()],
             'accentForeground' => ['light' => null, 'dark' => null],
             'base' => ['hue' => ($hue + random_int(-30, 30) + 360) % 360, 'chroma' => random_int(0, 30) / 1000],
@@ -105,9 +103,30 @@ final class Presets
                 'field' => $field,
                 'box' => $radius[min(array_search($field, $radius, true) + random_int(0, 1), 4)],
             ],
-            'spacing' => (float) array_rand(ThemeTokens::SPACING_STEPS),
+            'spacing' => (float) array_rand(LegacyThemeTokens::SPACING_STEPS),
             'font' => array_rand(ThemeTokens::FONTS),
-        ]);
+        ]))->toArray();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public static function tokens(string $key): ?array
+    {
+        return self::all()[$key]['tokens'] ?? null;
+    }
+
+    /**
+     * @param  array<string, array{name: string, tokens: array<string, mixed>}>  $presets
+     * @return array<string, array{name: string, tokens: array<string, mixed>}>
+     */
+    private static function compile(array $presets): array
+    {
+        foreach ($presets as $slug => $preset) {
+            $presets[$slug]['tokens'] = ThemeTokens::fromArray($preset['tokens'])->toArray();
+        }
+
+        return $presets;
     }
 
     /**

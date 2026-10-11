@@ -11,7 +11,7 @@ new #[Title('Theme & Tokens')] class extends Component {
     {
         $active = \App\Models\Theme::query()->active()->first();
         if ($active) {
-            $this->accent = $active->tokens->accentLight;
+            $this->accent = $active->tokens->light->accent;
         }
     }
 

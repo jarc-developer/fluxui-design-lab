@@ -2,6 +2,8 @@
 
 namespace App\Support\Theme;
 
+use App\Support\Theme\Legacy\LegacyThemeCompiler;
+use App\Support\Theme\Legacy\LegacyThemeTokens;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -9,17 +11,19 @@ use Illuminate\Validation\ValidationException;
 /**
  * Everything a theme can change, as validated, typed values.
  *
- * This is the only input ThemeCompiler accepts, and the compiled CSS is printed
- * raw into <head>. Every field is therefore either a strict hex colour, a bounded
- * number or an allow-listed slug, so no user input can smuggle CSS into the page.
+ * v2 is declarative: every colour Flux reads is stored explicitly per scheme
+ * (accent trio, the full 50–950 neutral ramp, status seeds). Derivation lives
+ * in the UI as one-shot fill actions, not in the stored model. The compiled
+ * CSS is printed raw into <head>, so every colour is a strict hex value and
+ * no user input can smuggle CSS into the page.
+ *
+ * Legacy v1 payloads (parametric: accent light/dark, base hue/chroma) are
+ * upcast by compile-snapshot in normalise(), so old share links, imports and
+ * database rows keep working.
  */
 final readonly class ThemeTokens
 {
     public const STATUSES = ['info', 'success', 'warning', 'danger'];
-
-    public const RADIUS_STEPS = [0, 0.25, 0.5, 1, 2];
-
-    public const SPACING_STEPS = ['0.2' => 'Compact', '0.25' => 'Default', '0.3' => 'Comfortable'];
 
     /**
      * Fonts the generator offers. `bunny` is the fonts.bunny.net family spec;
@@ -38,17 +42,10 @@ final readonly class ThemeTokens
         'lora' => ['family' => 'Lora', 'bunny' => 'lora:400,500,600', 'fallback' => 'serif'],
     ];
 
-    /**
-     * @param  array<string, string|null>  $status  info/success/warning/danger seed, null = Tailwind default
-     */
     public function __construct(
-        public string $accentLight,
-        public string $accentDark,
-        public ?string $accentForegroundLight,
-        public ?string $accentForegroundDark,
-        public float $baseHue,
-        public float $baseChroma,
-        public array $status,
+        public ThemeScheme $light,
+        public ?ThemeScheme $dark,
+        public string $darkMode,
         public float $radiusSelector,
         public float $radiusField,
         public float $radiusBox,
@@ -58,20 +55,52 @@ final readonly class ThemeTokens
 
     /**
      * The look the app ships with: neutral greys and a near-black / white accent.
+     * Both schemes explicit (manual) so the default is a complete static snapshot.
      *
      * @return array<string, mixed>
      */
     public static function defaults(): array
     {
+        $zinc = [
+            '50' => '#fafafa', '100' => '#f5f5f5', '200' => '#e5e5e5', '300' => '#d4d4d4',
+            '400' => '#a3a3a3', '500' => '#737373', '600' => '#525252', '700' => '#404040',
+            '800' => '#262626', '900' => '#171717', '950' => '#0a0a0a',
+        ];
+
+        $status = array_fill_keys(self::STATUSES, null);
+
         return [
-            'accent' => ['light' => '#262626', 'dark' => '#ffffff'],
-            'accentForeground' => ['light' => '#ffffff', 'dark' => '#262626'],
-            'base' => ['hue' => 0, 'chroma' => 0],
-            'status' => ['info' => null, 'success' => null, 'warning' => null, 'danger' => null],
+            'scheme' => [
+                'light' => [
+                    'accent' => '#262626',
+                    'accentContent' => '#262626',
+                    'accentForeground' => '#ffffff',
+                    'zinc' => $zinc,
+                    'status' => $status,
+                ],
+                'dark' => [
+                    'accent' => '#ffffff',
+                    'accentContent' => '#ffffff',
+                    'accentForeground' => '#262626',
+                    'zinc' => $zinc,
+                    'status' => $status,
+                ],
+            ],
+            'darkMode' => 'manual',
             'radius' => ['selector' => 0.25, 'field' => 0.5, 'box' => 0.75],
             'spacing' => 0.25,
             'font' => 'instrument-sans',
         ];
+    }
+
+    /**
+     * True for the v1 parametric shape (accent light/dark pair, base hue/chroma).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public static function isLegacy(array $data): bool
+    {
+        return isset($data['base']) || isset($data['accent']['light']);
     }
 
     /**
@@ -85,16 +114,9 @@ final readonly class ThemeTokens
         $optionalHex = ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'];
 
         $rules = [
-            'accent' => ['required', 'array'],
-            'accent.light' => $hex,
-            'accent.dark' => $hex,
-            'accentForeground' => ['nullable', 'array'],
-            'accentForeground.light' => $optionalHex,
-            'accentForeground.dark' => $optionalHex,
-            'base' => ['required', 'array'],
-            'base.hue' => ['required', 'numeric', 'between:0,360'],
-            'base.chroma' => ['required', 'numeric', 'between:0,0.08'],
-            'status' => ['nullable', 'array'],
+            'scheme' => ['required', 'array'],
+            'darkMode' => ['required', 'string', Rule::in(['auto', 'manual'])],
+            'scheme.dark' => ['nullable', 'array', 'required_if:'.$prefix.'darkMode,manual'],
             'radius' => ['required', 'array'],
             'radius.selector' => ['required', 'numeric', 'between:0,2'],
             'radius.field' => ['required', 'numeric', 'between:0,2'],
@@ -103,8 +125,18 @@ final readonly class ThemeTokens
             'font' => ['required', 'string', Rule::in(array_keys(self::FONTS))],
         ];
 
-        foreach (self::STATUSES as $status) {
-            $rules["status.{$status}"] = $optionalHex;
+        foreach (['light', 'dark'] as $scheme) {
+            foreach (['accent', 'accentContent', 'accentForeground'] as $slot) {
+                $rules["scheme.{$scheme}.{$slot}"] = $scheme === 'light' ? $hex : ['sometimes', ...$hex];
+            }
+
+            foreach (Palette::STEPS as $step) {
+                $rules["scheme.{$scheme}.zinc.{$step}"] = $scheme === 'light' ? $hex : ['sometimes', ...$hex];
+            }
+
+            foreach (self::STATUSES as $status) {
+                $rules["scheme.{$scheme}.status.{$status}"] = $scheme === 'light' ? $optionalHex : ['sometimes', ...$optionalHex];
+            }
         }
 
         $prefixed = [];
@@ -127,17 +159,12 @@ final readonly class ThemeTokens
 
         Validator::make($data, self::rules())->validate();
 
+        $darkMode = $data['darkMode'];
+
         return new self(
-            accentLight: strtolower($data['accent']['light']),
-            accentDark: strtolower($data['accent']['dark']),
-            accentForegroundLight: self::hexOrNull($data['accentForeground']['light'] ?? null),
-            accentForegroundDark: self::hexOrNull($data['accentForeground']['dark'] ?? null),
-            baseHue: (float) $data['base']['hue'],
-            baseChroma: (float) $data['base']['chroma'],
-            status: array_combine(
-                self::STATUSES,
-                array_map(fn (string $s): ?string => self::hexOrNull($data['status'][$s] ?? null), self::STATUSES),
-            ),
+            light: self::scheme($data['scheme']['light']),
+            dark: $darkMode === 'manual' ? self::scheme($data['scheme']['dark']) : null,
+            darkMode: $darkMode,
             radiusSelector: (float) $data['radius']['selector'],
             radiusField: (float) $data['radius']['field'],
             radiusBox: (float) $data['radius']['box'],
@@ -159,21 +186,44 @@ final readonly class ThemeTokens
     }
 
     /**
-     * Fill missing keys from the defaults and turn empty strings into nulls, which
-     * is what cleared colour pickers and partial JSON imports produce.
+     * The dark scheme as it should be compiled: explicit under the manual
+     * policy, synthesized from the light scheme under auto.
+     */
+    public function darkScheme(): ThemeScheme
+    {
+        return $this->dark ?? DarkScheme::synthesize($this->light);
+    }
+
+    /**
+     * Fill missing keys from the defaults, upcast legacy v1 payloads, and turn
+     * empty strings into nulls, which is what cleared colour pickers and partial
+     * JSON imports produce.
      *
      * @param  array<string, mixed>  $data
      * @return array<string, mixed>
      */
     public static function normalise(array $data): array
     {
+        if (self::isLegacy($data)) {
+            $data = self::upcastLegacy($data);
+        }
+
         $merged = array_replace_recursive(self::defaults(), $data);
+
+        if (($merged['darkMode'] ?? 'manual') === 'auto') {
+            $merged['scheme']['dark'] = null;
+        }
 
         array_walk_recursive($merged, function (mixed &$value): void {
             if ($value === '') {
                 $value = null;
             }
         });
+
+        $merged['scheme']['light'] = ThemeScheme::normalise($merged['scheme']['light'] ?? []);
+        $merged['scheme']['dark'] = is_array($merged['scheme']['dark'] ?? null)
+            ? ThemeScheme::normalise($merged['scheme']['dark'])
+            : null;
 
         return $merged;
     }
@@ -184,10 +234,11 @@ final readonly class ThemeTokens
     public function toArray(): array
     {
         return [
-            'accent' => ['light' => $this->accentLight, 'dark' => $this->accentDark],
-            'accentForeground' => ['light' => $this->accentForegroundLight, 'dark' => $this->accentForegroundDark],
-            'base' => ['hue' => $this->baseHue, 'chroma' => $this->baseChroma],
-            'status' => $this->status,
+            'scheme' => [
+                'light' => $this->light->toArray(),
+                'dark' => $this->dark?->toArray(),
+            ],
+            'darkMode' => $this->darkMode,
             'radius' => ['selector' => $this->radiusSelector, 'field' => $this->radiusField, 'box' => $this->radiusBox],
             'spacing' => $this->spacing,
             'font' => $this->font,
@@ -209,8 +260,65 @@ final readonly class ThemeTokens
         return $bunny === null ? null : 'https://fonts.bunny.net/css?family='.$bunny.'&display=swap';
     }
 
-    private static function hexOrNull(mixed $value): ?string
+    /**
+     * Compile-snapshot a v1 payload: run the frozen legacy compiler and capture
+     * the emitted values as explicit v2 slots, so the migrated theme renders
+     * exactly what the v1 theme rendered (design.md D3).
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    private static function upcastLegacy(array $data): array
     {
-        return is_string($value) && $value !== '' ? strtolower($value) : null;
+        $legacy = LegacyThemeTokens::fromArray($data);
+
+        ['light' => $light, 'dark' => $dark] = (new LegacyThemeCompiler)->variables($legacy);
+
+        $zinc = [];
+
+        foreach (Palette::STEPS as $step) {
+            $zinc[$step] = $light["--color-zinc-{$step}"];
+        }
+
+        return [
+            'scheme' => [
+                'light' => [
+                    'accent' => $light['--color-accent'],
+                    'accentContent' => $light['--color-accent-content'],
+                    'accentForeground' => $light['--color-accent-foreground'],
+                    'zinc' => $zinc,
+                    'status' => $legacy->status,
+                ],
+                'dark' => [
+                    'accent' => $dark['--color-accent'],
+                    'accentContent' => $dark['--color-accent-content'],
+                    'accentForeground' => $dark['--color-accent-foreground'],
+                    'zinc' => $zinc,
+                    'status' => $legacy->status,
+                ],
+            ],
+            'darkMode' => 'manual',
+            'radius' => [
+                'selector' => $legacy->radiusSelector,
+                'field' => $legacy->radiusField,
+                'box' => $legacy->radiusBox,
+            ],
+            'spacing' => $legacy->spacing,
+            'font' => $legacy->font,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function scheme(array $data): ThemeScheme
+    {
+        return new ThemeScheme(
+            accent: $data['accent'],
+            accentContent: $data['accentContent'],
+            accentForeground: $data['accentForeground'],
+            zinc: $data['zinc'],
+            status: $data['status'],
+        );
     }
 }

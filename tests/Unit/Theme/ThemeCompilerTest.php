@@ -52,19 +52,17 @@ class ThemeCompilerTest extends TestCase
         $this->assertStringContainsString('@layer theme {', $export);
         $this->assertStringContainsString('.dark {', $export);
         $this->assertStringContainsString('--color-accent: #4f46e5;', $export);
+        $this->assertStringContainsString('--color-zinc-50: #fafafb;', $export);
+        $this->assertStringContainsString('--radius-selector: 0.25rem;', $export);
         $this->assertStringContainsString('[data-flux-checkbox-indicator]', $export);
     }
 
     public function test_status_palette_generates_matching_sub_palettes(): void
     {
-        $tokens = ThemeTokens::fromArray(array_merge(ThemeTokens::defaults(), [
-            'status' => [
-                'info' => '#0284c7',
-                'success' => null,
-                'warning' => null,
-                'danger' => null,
-            ],
-        ]));
+        $data = ThemeTokens::defaults();
+        $data['scheme']['light']['status']['info'] = '#0284c7';
+
+        $tokens = ThemeTokens::fromArray($data);
 
         $vars = $this->compiler->variables($tokens)['light'];
 

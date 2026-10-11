@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Theme;
 
+use App\Support\Theme\Legacy\LegacyThemeTokens;
 use App\Support\Theme\Presets;
 use App\Support\Theme\ThemeCodec;
 use App\Support\Theme\ThemeTokens;
@@ -40,9 +41,26 @@ class ThemeCodecTest extends TestCase
     {
         // Crafted json with injection attempt
         $badData = ThemeTokens::defaults();
-        $badData['accent']['light'] = '#ffffff; body { display:none }';
+        $badData['scheme']['light']['accent'] = '#ffffff; body { display:none }';
 
         $compressed = rtrim(strtr(base64_encode((string) gzdeflate((string) json_encode($badData))), '+/', '-_'), '=');
         $this->assertNull(ThemeCodec::decode($compressed));
+    }
+
+    public function test_legacy_v1_share_code_upcasts_on_decode(): void
+    {
+        $legacyPayload = array_replace(LegacyThemeTokens::defaults(), [
+            'accent' => ['light' => '#e11d48', 'dark' => '#fb7185'],
+            'accentForeground' => ['light' => null, 'dark' => null],
+        ]);
+
+        $code = rtrim(strtr(base64_encode((string) gzdeflate((string) json_encode($legacyPayload), 9)), '+/', '-_'), '=');
+
+        $decoded = ThemeCodec::decode($code);
+
+        $this->assertNotNull($decoded);
+        $this->assertSame('#e11d48', $decoded->light->accent);
+        $this->assertSame('manual', $decoded->darkMode);
+        $this->assertSame('#fb7185', $decoded->dark?->accent);
     }
 }
