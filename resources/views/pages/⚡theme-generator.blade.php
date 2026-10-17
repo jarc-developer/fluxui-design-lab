@@ -12,7 +12,6 @@ use App\Support\Theme\ThemeScheme;
 use App\Support\Theme\ThemeTokens;
 use Flux\Flux;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -321,7 +320,6 @@ new #[Title('Theme Generator')] class extends Component {
             'name' => $this->name,
             'slug' => $slug,
             'tokens' => $tokens,
-            'user_id' => Auth::id(),
         ]);
 
         $this->selectedThemeId = $theme->id;
@@ -342,7 +340,7 @@ new #[Title('Theme Generator')] class extends Component {
             if ($theme) {
                 $theme->update(['name' => $this->name, 'tokens' => $tokens]);
                 $theme->activate();
-                $this->redirect(route('theme.generator', ['theme' => $this->themeCode]), navigate: false);
+                $this->redirect(route('home', ['theme' => $this->themeCode]), navigate: false);
 
                 return;
             }
@@ -353,13 +351,12 @@ new #[Title('Theme Generator')] class extends Component {
             'name' => $this->name,
             'slug' => $slug,
             'tokens' => $tokens,
-            'user_id' => Auth::id(),
         ]);
 
         $this->selectedThemeId = $theme->id;
         $theme->activate();
 
-        $this->redirect(route('theme.generator', ['theme' => $this->themeCode]), navigate: false);
+        $this->redirect(route('home', ['theme' => $this->themeCode]), navigate: false);
     }
 
     public function deleteTheme(int $id): void

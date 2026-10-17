@@ -89,7 +89,7 @@ final class DaisyThemeMapper
     /**
      * Accepts a full theme-generator URL, a bare share code, or theme JSON.
      *
-     * @return array<string, mixed>|null
+     * @return array<array-key, mixed>|null
      */
     private static function extract(string $payload): ?array
     {
@@ -129,7 +129,7 @@ final class DaisyThemeMapper
 
     /**
      * @param  array<string, Color>  $colors
-     * @param  array<string, mixed>  $theme
+     * @param  array<array-key, mixed>  $theme
      * @return array<string, mixed>
      */
     private static function tokens(array $colors, array $theme, bool $useNeutralForDark): array

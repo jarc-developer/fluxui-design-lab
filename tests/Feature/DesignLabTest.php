@@ -2,8 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
-use Database\Seeders\RoleSeeder;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
@@ -56,7 +54,7 @@ class DesignLabTest extends TestCase
             'data' => ['/components/data'],
             'overlays' => ['/components/overlays'],
             'theme' => ['/theme'],
-            'theme-generator' => ['/theme/generator'],
+            'theme-generator' => ['/'],
             'layouts' => ['/layouts'],
             'editor' => ['/components/editor'],
             'composer' => ['/components/composer'],
@@ -96,35 +94,28 @@ class DesignLabTest extends TestCase
         ];
     }
 
-    public function test_guests_are_redirected_to_the_login_page(): void
+    public function test_catalog_pages_are_publicly_accessible(): void
     {
-        $this->get('/components/forms')->assertRedirect('/login');
+        $this->get('/components/forms')->assertOk();
     }
 
-    public function test_root_sends_guests_to_the_login_page(): void
+    public function test_root_renders_the_theme_generator(): void
     {
-        $this->get('/')->assertRedirect(route('login'));
-    }
-
-    public function test_root_sends_authenticated_users_to_the_dashboard(): void
-    {
-        $this->actingAs(User::factory()->create())
-            ->get('/')
-            ->assertRedirect(route('dashboard'));
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('Theme Generator');
     }
 
     #[DataProvider('labPages')]
-    public function test_catalog_pages_render_for_authenticated_users(string $path): void
+    public function test_catalog_pages_render(string $path): void
     {
-        $this->actingAs(User::factory()->create())
-            ->get($path)
-            ->assertOk();
+        $this->get($path)->assertOk();
     }
 
     #[DataProvider('labPages')]
     public function test_catalog_pages_emit_livewire_and_flux_assets(string $path): void
     {
-        $response = $this->actingAs(User::factory()->create())->get($path);
+        $response = $this->get($path);
 
         $response->assertSee('flux', false);
         $response->assertSee('data-flux-', false);
@@ -132,8 +123,7 @@ class DesignLabTest extends TestCase
 
     public function test_forms_page_renders_interactive_inputs(): void
     {
-        $html = $this->actingAs(User::factory()->create())
-            ->get('/components/forms')
+        $html = $this->get('/components/forms')
             ->assertOk()
             ->getContent();
 
@@ -144,8 +134,7 @@ class DesignLabTest extends TestCase
 
     public function test_overlays_page_renders_a_modal(): void
     {
-        $html = $this->actingAs(User::factory()->create())
-            ->get('/components/overlays')
+        $html = $this->get('/components/overlays')
             ->assertOk()
             ->getContent();
 
@@ -158,18 +147,6 @@ class DesignLabTest extends TestCase
             ->set('search', 'flux:button')
             ->assertSee('flux:button')
             ->assertDontSee('flux:kanban');
-    }
-
-    public function test_seeded_roles_are_available(): void
-    {
-        $this->seed(RoleSeeder::class);
-
-        $admin = User::factory()->create();
-        $admin->assignRole('admin');
-
-        $this->assertTrue($admin->hasRole('admin'));
-        $this->assertTrue($admin->can('manage theme'));
-        $this->assertFalse($admin->can('does-not-exist'));
     }
 
     /**
@@ -192,15 +169,11 @@ class DesignLabTest extends TestCase
     #[DataProvider('proPageMarkers')]
     public function test_pro_pages_render_their_root_component(string $component, string $marker): void
     {
-        $this->actingAs(User::factory()->create());
-
         $this->assertStringContainsString($marker, Livewire::test($component)->html());
     }
 
     public function test_charts_page_renders_every_series_and_axis_type(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.charts')->html();
 
         // Chart components carry no data-flux-* attributes, so the <template
@@ -269,8 +242,6 @@ class DesignLabTest extends TestCase
             ],
         ];
 
-        $this->actingAs(User::factory()->create());
-
         foreach ($markers as $component => $expected) {
             $html = Livewire::test($component)->html();
 
@@ -282,8 +253,6 @@ class DesignLabTest extends TestCase
 
     public function test_forms_page_covers_the_pro_select_variants(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.forms')->html();
 
         foreach ([
@@ -302,8 +271,6 @@ class DesignLabTest extends TestCase
     #[DataProvider('labComponents')]
     public function test_every_catalog_page_renders_at_least_one_copyable_snippet(string $component): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test($component)->html();
 
         $this->assertStringContainsString('data-lab-example', $html);
@@ -401,8 +368,6 @@ class DesignLabTest extends TestCase
 
     public function test_every_chart_wraps_its_marks_in_an_svg_template(): void
     {
-        $this->actingAs(User::factory()->create());
-
         // The chart JS finds its series, axes and overlays by querying
         // template[name="svg"] inside the <ui-chart>, then hydrating that
         // template. A chart with no <flux:chart.svg> inside it throws in
@@ -476,8 +441,6 @@ class DesignLabTest extends TestCase
 
     public function test_charts_page_offers_the_official_preset_taxonomy(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.charts')->html();
 
         // The switcher mirrors the official page's grouping — line, bar and
@@ -516,8 +479,6 @@ class DesignLabTest extends TestCase
 
     public function test_charts_page_covers_the_documented_engine_attributes(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.charts')->html();
 
         // Each of these is a knob the chart engine actually reads. They are
@@ -551,8 +512,6 @@ class DesignLabTest extends TestCase
 
     public function test_charts_page_never_mixes_a_pie_with_cartesian_marks(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.charts')->html();
 
         $dom = new DOMDocument;
@@ -590,8 +549,6 @@ class DesignLabTest extends TestCase
 
     public function test_the_limits_example_renders_prose_without_a_snippet(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.charts')->html();
 
         $dom = new DOMDocument;
@@ -684,8 +641,6 @@ class DesignLabTest extends TestCase
 
     public function test_carousel_page_demonstrates_key_flux_pro_attributes(): void
     {
-        $this->actingAs(User::factory()->create());
-
         $html = Livewire::test('pages::components.carousel')->html();
 
         foreach ([
@@ -953,20 +908,6 @@ class DesignLabTest extends TestCase
         $this->assertFalse(
             (bool) preg_match('/<flux:sidebar\.group[^>]*class=[\'"][^\'"]*grid/i', $contents),
             'Non-expandable sidebar groups should not specify class="grid" which conflicts with flex flex-col.',
-        );
-        $this->assertStringContainsString('<flux:dropdown position="bottom" align="end">', $contents);
-    }
-
-    public function test_desktop_user_menu_uses_official_flux_dropdown_and_profile_props(): void
-    {
-        $contents = File::get(resource_path('views/components/desktop-user-menu.blade.php'));
-
-        $this->assertStringContainsString('position="top"', $contents);
-        $this->assertStringContainsString('align="start"', $contents);
-        $this->assertStringContainsString('{{ $attributes', $contents);
-        $this->assertFalse(
-            (bool) preg_match('/<flux:menu\.radio\.group>/i', $contents),
-            'Navigation items like Settings and Logout should not be wrapped in flux:menu.radio.group.',
         );
     }
 }

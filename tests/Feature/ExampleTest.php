@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -11,14 +10,14 @@ class ExampleTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * The lab replaced the starter kit's public welcome page: the root route
-     * now resolves to the sign-in screen for guests and the dashboard once
-     * signed in.
+     * The root route serves the theme generator and is publicly accessible:
+     * the lab has no authentication.
      */
     public function test_root_returns_a_successful_response(): void
     {
-        $response = $this->actingAs(User::factory()->create())->get(route('home'));
+        $response = $this->get(route('home'));
 
-        $response->assertRedirect(route('dashboard'));
+        $response->assertOk();
+        $response->assertSee('Theme Generator');
     }
 }

@@ -11,6 +11,7 @@ namespace App\Support\Theme;
  */
 final class Palette
 {
+    /** @var list<string> */
     public const STEPS = ['50', '100', '200', '300', '400', '500', '600', '700', '800', '900', '950'];
 
     /** Tailwind v4 lightness for chromatic palettes (blue, red, ...). */

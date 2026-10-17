@@ -63,12 +63,12 @@ new #[Title('Theme & Tokens')] class extends Component {
                     Create, preview, and globally activate custom color palettes, neutral tones, corner radiuses, and fonts across all project pages.
                 </flux:callout.text>
             </div>
-            <flux:button :href="route('theme.generator')" variant="primary" size="sm" icon-trailing="arrow-right" wire:navigate>
+            <flux:button :href="route('home')" variant="primary" size="sm" icon-trailing="arrow-right" wire:navigate>
                 Open Theme Generator
             </flux:button>
         </flux:callout>
         <x-lab.section heading="Appearance"
-                      subheading="Drives Flux's appearance, mirrored by the account setting.">
+                      subheading="Drives Flux's appearance across every page of the lab.">
             <x-lab.example src="lab.examples.theme.appearance"
                            title="Light, dark and system"
                            subheading="radio.group bound to $flux.appearance, which writes to local storage and applies the dark class for you." />

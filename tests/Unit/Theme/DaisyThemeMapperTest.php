@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Theme;
 
+use App\Support\Theme\Color;
 use App\Support\Theme\DaisyThemeMapper;
 use App\Support\Theme\ThemeTokens;
 use Tests\TestCase;
@@ -49,8 +50,8 @@ class DaisyThemeMapperTest extends TestCase
 
         // The synthesized dark side still meets contrast requirements.
         $dark = $tokens->darkScheme();
-        $contrast = \App\Support\Theme\Color::fromHex($dark->accentForeground)
-            ->contrastWith(\App\Support\Theme\Color::fromHex($dark->accent));
+        $contrast = Color::fromHex($dark->accentForeground)
+            ->contrastWith(Color::fromHex($dark->accent));
         $this->assertGreaterThanOrEqual(4.5, $contrast);
     }
 

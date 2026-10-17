@@ -11,7 +11,7 @@ namespace App\Support\Theme;
 final readonly class ThemeScheme
 {
     /**
-     * @param  array<string, string>  $zinc  step (50–950) => hex
+     * @param  array<int|string, string>  $zinc  step (50–950) => hex (numeric step keys are ints at runtime)
      * @param  array<string, string|null>  $status  info/success/warning/danger seed, null = Tailwind default
      */
     public function __construct(

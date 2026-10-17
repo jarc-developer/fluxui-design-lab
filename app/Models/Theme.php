@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -23,7 +22,6 @@ use Illuminate\Support\Str;
  * @property string $slug
  * @property ThemeTokens $tokens
  * @property bool $is_active
- * @property int|null $user_id
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
@@ -33,7 +31,7 @@ class Theme extends Model
     /** @use HasFactory<ThemeFactory> */
     use HasFactory;
 
-    protected $fillable = ['name', 'slug', 'tokens', 'user_id'];
+    protected $fillable = ['name', 'slug', 'tokens'];
 
     /**
      * @return array<string, string>
@@ -44,14 +42,6 @@ class Theme extends Model
             'tokens' => ThemeTokensCast::class,
             'is_active' => 'boolean',
         ];
-    }
-
-    /**
-     * @return BelongsTo<User, $this>
-     */
-    public function user(): BelongsTo
-    {
-        return $this->belongsTo(User::class);
     }
 
     /**

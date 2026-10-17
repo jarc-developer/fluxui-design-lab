@@ -3,8 +3,10 @@
 A **design system / component playground** for Flux Pro on Livewire 4 and Laravel 13, running
 entirely in Docker.
 
-The app catalogues Flux components, theme tokens and layout patterns. There is no business
-domain — it exists so components can be exercised, compared and tweaked in isolation.
+The app catalogues Flux components, theme tokens and layout patterns around a theme
+generator at `/`. There is no business domain and no authentication — it exists so
+components can be exercised, compared and tweaked in isolation, and every page is
+publicly accessible.
 
 ## Stack
 
@@ -32,14 +34,6 @@ docker compose up -d
 | Vite dev server | http://localhost:5175 |
 | MySQL | `localhost:3310` |
 
-Seeded accounts (after `php artisan db:seed`):
-
-- `admin@design-lab.test` — role `admin`
-- `viewer@design-lab.test` — role `viewer`
-
-Roles are `admin`, `editor` and `viewer`; permissions are `view catalog`, `edit catalog` and
-`manage theme`.
-
 ## Common commands
 
 ```bash
@@ -64,9 +58,9 @@ docker compose exec app php artisan flux:publish <component>   # customise one c
 | `/components/phone` | `flux:phone` country and number input (Pro) |
 | `/components/calendar` | `flux:calendar` month view, compared to `flux:date-picker` (Pro) |
 | `/components/charts` | the `flux:chart` family as a preset gallery — line, bar and pie presets, plus a reference tab (Pro) |
+| `/` | the theme generator — DaisyUI-style theme creator: accents, neutral zinc ramp, radius, density, fonts, presets, share URL, CSS export, and global activation |
 | `/theme` | appearance, accent, palette, radius, type scale, spacing |
-| `/theme/generator` | DaisyUI-style theme creator: accents, neutral zinc ramp, radius, density, fonts, presets, share URL, CSS export, and global activation |
-| `/layouts` | cards, nav lists, separators, auth shells, shell anatomy |
+| `/layouts` | cards, nav lists, separators, shell anatomy |
 
 Pages live in `resources/views/pages/` and are wrapped automatically by
 `<x-layouts::app>` through Livewire's `component_layout` config — do **not** add the layout
@@ -114,11 +108,12 @@ attribute anywhere on the page, so a preset cannot quietly do nothing.
 
 ## The theme generator
 
-`/theme/generator` provides a DaisyUI-style theme creator tailored for Flux UI and Tailwind CSS v4.
+`/` is the theme generator, a DaisyUI-style theme creator tailored for Flux UI and Tailwind CSS v4.
 
 - **Global activation:** activating a theme marks it in the database and renders an unlayered
   `<style id="lab-theme">` in `resources/views/partials/theme.blade.php`. This overrides Tailwind
-  `@theme` values and applies across **every page of the app** (catalog, dashboard, settings, auth).
+  `@theme` values and applies across **every page of the app** — the generator and every
+  catalog page.
 - **OKLCH palette synthesis:** changing base hue and chroma generates a complete 11-step neutral
   ramp (`--color-zinc-50` through `--color-zinc-950`), following Tailwind v4's lightness curve.
   Accents generate readable foregrounds and text contrast automatically.

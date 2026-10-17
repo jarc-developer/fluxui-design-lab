@@ -17,7 +17,6 @@ return new class extends Migration
             $table->string('slug')->unique();
             $table->json('tokens');
             $table->boolean('is_active')->default(false)->index();
-            $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $table->timestamps();
         });
     }

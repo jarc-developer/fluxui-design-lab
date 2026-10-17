@@ -51,7 +51,7 @@ new #[Title('Layout Patterns')] class extends Component {
             <div class="max-w-xs">
                 <flux:navlist aria-label="Example navlist">
                     <flux:navlist.group heading="Pages">
-                        <flux:navlist.item :href="route('dashboard')" wire:navigate icon="home">Dashboard</flux:navlist.item>
+                        <flux:navlist.item :href="route('home')" wire:navigate icon="paint-brush">Theme Generator</flux:navlist.item>
                         <flux:navlist.item :href="route('components.forms')" wire:navigate icon="cursor-arrow-rays">
                             Forms &amp; Inputs
                             <flux:navlist.badge size="sm">8</flux:navlist.badge>
@@ -95,35 +95,6 @@ new #[Title('Layout Patterns')] class extends Component {
             <flux:text size="sm" class="text-zinc-500">Below the spacer.</flux:text>
         </x-lab.section>
 
-        <x-lab.section heading="Auth layouts"
-                      subheading="The kit ships three authentication shells. These are rendered live.">
-            <div class="grid gap-4 md:grid-cols-3">
-                <flux:card class="flex flex-col gap-2">
-                    <flux:badge size="sm">card</flux:badge>
-                    <flux:text size="sm">
-                        A centered card on a plain background. The default for login and registration.
-                    </flux:text>
-                    <flux:button size="sm" variant="subtle" href="{{ route('login') }}" wire:navigate class="self-start">
-                        View login
-                    </flux:button>
-                </flux:card>
-
-                <flux:card class="flex flex-col gap-2">
-                    <flux:badge size="sm">simple</flux:badge>
-                    <flux:text size="sm">
-                        Minimal chrome, useful for embedded flows and passwordless entry.
-                    </flux:text>
-                </flux:card>
-
-                <flux:card class="flex flex-col gap-2">
-                    <flux:badge size="sm">split</flux:badge>
-                    <flux:text size="sm">
-                        Two-pane marketing shell with a branded side panel.
-                    </flux:text>
-                </flux:card>
-            </div>
-        </x-lab.section>
-
         <x-lab.section heading="Shell anatomy"
                       subheading="The sidebar layout used by every page in this lab.">
             <x-lab.example src="lab.examples.layouts.sidebar"
@@ -136,11 +107,8 @@ new #[Title('Layout Patterns')] class extends Component {
                     <code>flux:main</code> region.
                 </flux:callout>
                 <flux:callout icon="bars-3" variant="secondary">
-                    <code>layouts/app/sidebar.blade.php</code> renders the Flux sidebar, its groups and the
-                    user menu.
-                </flux:callout>
-                <flux:callout icon="bars-3" variant="secondary">
-                    <code>layouts/app/header.blade.php</code> provides the mobile header and sidebar toggle.
+                    <code>layouts/app/sidebar.blade.php</code> renders the Flux sidebar, its groups, the
+                    mobile header and the sidebar toggle.
                 </flux:callout>
                 <flux:callout icon="swatch" variant="secondary">
                     Every full-page component wraps itself in <code>&lt;x-layouts::app&gt;</code>.

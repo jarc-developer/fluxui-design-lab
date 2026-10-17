@@ -150,7 +150,7 @@ final class LegacyThemeCompiler
         ];
 
         /** @var Color $baseDark */
-        $baseDark = $base['800'] ?? $base[800] ?? Color::fromHex('#262626');
+        $baseDark = $base['800'] ?? Color::fromHex('#262626');
 
         $dark = [
             '--color-accent' => $accentDark->toHex(),
