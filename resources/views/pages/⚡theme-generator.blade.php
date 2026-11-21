@@ -33,6 +33,10 @@ new #[Title('Theme Generator')] class extends Component {
 
     public string $editorScheme = 'light';
 
+    public string $previewTab = 'dashboard';
+
+    public string $dashboardSubTab = 'overview';
+
     public string $exportFormat = 'css';
 
     public string $importPayload = '';
@@ -613,58 +617,136 @@ new #[Title('Theme Generator')] class extends Component {
         <link rel="stylesheet" href="{{ $this->previewTokens->fontUrl() }}">
     @endif
 
-    {{-- Header & Primary Action Bar --}}
-    <div class="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-5 shadow-xs sm:flex-row sm:items-center sm:justify-between dark:border-zinc-800 dark:bg-zinc-900">
-        <div class="flex flex-col gap-1">
-            <div class="flex items-center gap-2">
-                <flux:heading size="xl">Theme Generator</flux:heading>
-                @if (app(\App\Support\Theme\ActiveTheme::class)->hasWorking())
-                    <flux:badge color="blue" size="sm" icon="bolt">Live Across Platform</flux:badge>
-                @elseif ($selectedThemeId && ($activeTheme = $this->savedThemes->firstWhere('id', $selectedThemeId)) && $activeTheme->is_active)
-                    <flux:badge color="green" size="sm" icon="check">Active Project Theme</flux:badge>
-                @endif
+    {{-- Top Control Card: Theme Name, Actions, Presets & Saved Themes --}}
+    <flux:card class="flex flex-col gap-5">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div class="flex flex-wrap items-end gap-3">
+                <flux:field class="w-full sm:w-64">
+                    <flux:label>Theme Name</flux:label>
+                    <flux:input wire:model.live.debounce.300ms="name" icon="swatch" placeholder="e.g. Ocean Blue" />
+                </flux:field>
+
+                <div class="flex h-10 items-center">
+                    @if (app(\App\Support\Theme\ActiveTheme::class)->hasWorking())
+                        <flux:badge color="blue" size="sm" icon="bolt">Live Across Platform</flux:badge>
+                    @elseif ($selectedThemeId && ($activeTheme = $this->savedThemes->firstWhere('id', $selectedThemeId)) && $activeTheme->is_active)
+                        <flux:badge color="green" size="sm" icon="check">Active Project Theme</flux:badge>
+                    @endif
+                </div>
             </div>
-            <flux:subheading>
-                Every colour Flux reads, editable per scheme. Import a daisyUI theme, tweak the slots, activate globally or export.
-            </flux:subheading>
+
+            <div class="flex flex-wrap items-center gap-2">
+                <flux:button wire:click="activate" variant="primary" icon="bolt" class="cursor-pointer">
+                    Activate Globally
+                </flux:button>
+
+                <flux:dropdown>
+                    <flux:button variant="filled" icon-trailing="chevron-down">Save...</flux:button>
+                    <flux:menu>
+                        <flux:menu.item wire:click="save" icon="arrow-down-tray">Save Theme</flux:menu.item>
+                        <flux:menu.item wire:click="saveAs" icon="document-plus">Save As New Theme</flux:menu.item>
+                    </flux:menu>
+                </flux:dropdown>
+
+                <flux:button wire:click="randomize" variant="subtle" icon="arrow-path" title="Generate coherent random theme">
+                    Random
+                </flux:button>
+
+                <flux:button
+                    variant="subtle"
+                    icon="share"
+                    x-data
+                    x-on:click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '?theme={{ $themeCode }}'); $flux.toast({ text: 'Shareable theme link copied to clipboard!', variant: 'success' })"
+                    title="Copy share link"
+                >
+                    Share
+                </flux:button>
+
+                <flux:modal.trigger name="export-modal">
+                    <flux:button variant="subtle" icon="arrow-up-tray" title="Export CSS / JSON">Export</flux:button>
+                </flux:modal.trigger>
+
+                <flux:modal.trigger name="import-modal">
+                    <flux:button variant="subtle" icon="arrow-down-tray" title="Import Theme">Import</flux:button>
+                </flux:modal.trigger>
+            </div>
         </div>
 
-        <div class="flex flex-wrap items-center gap-2">
-            <flux:button wire:click="activate" variant="primary" icon="bolt" class="cursor-pointer">
-                Activate Globally
-            </flux:button>
+        <div class="grid grid-cols-1 gap-5 border-t border-zinc-200 pt-4 lg:grid-cols-12 dark:border-zinc-800">
+            {{-- Built-in Presets --}}
+            <div class="flex flex-col gap-2.5 lg:col-span-5">
+                <div class="flex items-center justify-between">
+                    <flux:heading size="sm">Presets</flux:heading>
+                    <flux:button wire:click="resetToDefaults" variant="ghost" size="xs">Reset</flux:button>
+                </div>
 
-            <flux:dropdown>
-                <flux:button variant="filled" icon-trailing="chevron-down">Save...</flux:button>
-                <flux:menu>
-                    <flux:menu.item wire:click="save" icon="arrow-down-tray">Save Theme</flux:menu.item>
-                    <flux:menu.item wire:click="saveAs" icon="document-plus">Save As New Theme</flux:menu.item>
-                </flux:menu>
-            </flux:dropdown>
+                <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    @foreach (\App\Support\Theme\Presets::all() as $slug => $preset)
+                        @php
+                            $presetTokens = \App\Support\Theme\ThemeTokens::fromArray($preset['tokens']);
+                            $presetScheme = $editorScheme === 'dark' ? $presetTokens->darkScheme() : $presetTokens->light;
+                            $presetSurface = $editorScheme === 'dark'
+                                ? ($presetScheme->zinc['900'] ?? '#171717')
+                                : ($presetScheme->zinc['50'] ?? '#fafafa');
+                        @endphp
+                        <button
+                            type="button"
+                            wire:click="loadPreset('{{ $slug }}')"
+                            class="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 px-2.5 py-1.5 text-start text-xs transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                        >
+                            <span class="truncate font-medium text-zinc-900 dark:text-zinc-100">{{ $preset['name'] }}</span>
+                            <span class="flex shrink-0 items-center gap-1">
+                                <span class="size-3.5 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $presetScheme->accent }}"></span>
+                                <span class="size-3.5 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $presetSurface }}"></span>
+                            </span>
+                        </button>
+                    @endforeach
+                </div>
+            </div>
 
-            <flux:button wire:click="randomize" variant="subtle" icon="arrow-path" title="Generate coherent random theme">
-                Random
-            </flux:button>
+            {{-- Saved Themes in Database --}}
+            <div class="flex flex-col gap-2.5 lg:col-span-7 lg:border-s lg:border-zinc-200 lg:ps-5 dark:lg:border-zinc-800">
+                <div class="flex items-center justify-between">
+                    <flux:heading size="sm">Saved Themes</flux:heading>
+                    <flux:badge size="sm" color="zinc">{{ $this->savedThemes->count() }}</flux:badge>
+                </div>
 
-            <flux:button
-                variant="subtle"
-                icon="share"
-                x-data
-                x-on:click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '?theme={{ $themeCode }}'); $flux.toast({ text: 'Shareable theme link copied to clipboard!', variant: 'success' })"
-                title="Copy share link"
-            >
-                Share
-            </flux:button>
+                <div class="grid max-h-28 grid-cols-1 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+                    @forelse ($this->savedThemes as $savedTheme)
+                        @php
+                            $savedScheme = $editorScheme === 'dark' ? $savedTheme->tokens->darkScheme() : $savedTheme->tokens->light;
+                        @endphp
+                        <div class="flex items-center justify-between gap-1 rounded-lg border border-zinc-200/80 px-2.5 py-1.5 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800 {{ $selectedThemeId === $savedTheme->id ? 'bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-600' : '' }}">
+                            <button
+                                type="button"
+                                wire:click="loadTheme({{ $savedTheme->id }})"
+                                class="flex min-w-0 flex-1 items-center gap-2 text-start text-xs text-zinc-800 dark:text-zinc-200"
+                            >
+                                <span class="size-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $savedScheme->accent }}"></span>
+                                <span class="truncate font-medium">{{ $savedTheme->name }}</span>
+                                @if ($savedTheme->is_active)
+                                    <flux:badge color="green" size="sm">active</flux:badge>
+                                @endif
+                            </button>
 
-            <flux:modal.trigger name="export-modal">
-                <flux:button variant="subtle" icon="arrow-up-tray" title="Export CSS / JSON">Export</flux:button>
-            </flux:modal.trigger>
-
-            <flux:modal.trigger name="import-modal">
-                <flux:button variant="subtle" icon="arrow-down-tray" title="Import Theme">Import</flux:button>
-            </flux:modal.trigger>
+                            @if (! $savedTheme->is_active)
+                                <flux:button
+                                    wire:click="deleteTheme({{ $savedTheme->id }})"
+                                    wire:confirm="Delete theme '{{ $savedTheme->name }}'?"
+                                    variant="ghost"
+                                    size="xs"
+                                    icon="trash"
+                                    class="shrink-0 text-zinc-400 hover:text-red-600"
+                                />
+                            @endif
+                        </div>
+                    @empty
+                        <flux:text size="sm" class="text-zinc-500">No saved themes yet.</flux:text>
+                    @endforelse
+                </div>
+            </div>
         </div>
-    </div>
+    </flux:card>
 
     {{-- Import report: daisyUI fields that have no Flux equivalent --}}
     @if (! empty($importReport))
@@ -680,89 +762,10 @@ new #[Title('Theme Generator')] class extends Component {
         </flux:callout>
     @endif
 
-    {{-- Main 3-Column Layout --}}
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-        {{-- Left Column: Themes & Presets (3 cols) --}}
-        <div class="flex flex-col gap-6 lg:col-span-3">
-            {{-- Theme Name Input --}}
-            <flux:card class="flex flex-col gap-3">
-                <flux:field>
-                    <flux:label>Theme Name</flux:label>
-                    <flux:input wire:model.live.debounce.300ms="name" placeholder="e.g. Ocean Blue" />
-                </flux:field>
-            </flux:card>
-
-            {{-- Built-in Presets --}}
-            <flux:card class="flex flex-col gap-3">
-                <div class="flex items-center justify-between">
-                    <flux:heading size="sm">Presets</flux:heading>
-                    <flux:button wire:click="resetToDefaults" variant="ghost" size="xs">Reset</flux:button>
-                </div>
-                <div class="flex flex-col gap-1.5">
-                    @foreach (\App\Support\Theme\Presets::all() as $slug => $preset)
-                        @php
-                            $presetTokens = \App\Support\Theme\ThemeTokens::fromArray($preset['tokens']);
-                            $presetScheme = $editorScheme === 'dark' ? $presetTokens->darkScheme() : $presetTokens->light;
-                            $presetSurface = $editorScheme === 'dark'
-                                ? ($presetScheme->zinc['900'] ?? '#171717')
-                                : ($presetScheme->zinc['50'] ?? '#fafafa');
-                        @endphp
-                        <button
-                            type="button"
-                            wire:click="loadPreset('{{ $slug }}')"
-                            class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-start text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                        >
-                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $preset['name'] }}</span>
-                            <div class="flex items-center gap-1.5">
-                                <span class="size-4 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $presetScheme->accent }}"></span>
-                                <span class="size-4 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $presetSurface }}"></span>
-                            </div>
-                        </button>
-                    @endforeach
-                </div>
-            </flux:card>
-
-            {{-- Saved Themes in Database --}}
-            <flux:card class="flex flex-col gap-3">
-                <flux:heading size="sm">Saved Themes</flux:heading>
-                <div class="flex max-h-72 flex-col gap-1 overflow-y-auto">
-                    @forelse ($this->savedThemes as $savedTheme)
-                        @php
-                            $savedScheme = $editorScheme === 'dark' ? $savedTheme->tokens->darkScheme() : $savedTheme->tokens->light;
-                        @endphp
-                        <div class="flex items-center justify-between rounded-lg px-2.5 py-1.5 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {{ $selectedThemeId === $savedTheme->id ? 'bg-zinc-100 dark:bg-zinc-800 ring-1 ring-zinc-300 dark:ring-zinc-600' : '' }}">
-                            <button
-                                type="button"
-                                wire:click="loadTheme({{ $savedTheme->id }})"
-                                class="flex flex-1 items-center gap-2 text-start text-sm text-zinc-800 dark:text-zinc-200"
-                            >
-                                <span class="size-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $savedScheme->accent }}"></span>
-                                <span class="truncate">{{ $savedTheme->name }}</span>
-                                @if ($savedTheme->is_active)
-                                    <flux:badge color="green" size="sm">active</flux:badge>
-                                @endif
-                            </button>
-
-                            @if (! $savedTheme->is_active)
-                                <flux:button
-                                    wire:click="deleteTheme({{ $savedTheme->id }})"
-                                    wire:confirm="Delete theme '{{ $savedTheme->name }}'?"
-                                    variant="ghost"
-                                    size="xs"
-                                    icon="trash"
-                                    class="text-zinc-400 hover:text-red-600"
-                                />
-                            @endif
-                        </div>
-                    @empty
-                        <flux:text size="sm" class="text-zinc-500">No saved themes yet.</flux:text>
-                    @endforelse
-                </div>
-            </flux:card>
-        </div>
-
-        {{-- Middle Column: Token Slots (4 cols) --}}
-        <div class="flex flex-col gap-6 lg:col-span-4">
+    {{-- Main 2-Column Layout: Settings & Live Preview --}}
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-12 xl:items-start">
+        {{-- Left Column: Token Slots (4 cols) --}}
+        <div class="flex flex-col gap-6 xl:col-span-4">
             @php
                 $scheme = $editorScheme;
                 $isAutoDark = $scheme === 'dark' && ($tokens['darkMode'] ?? 'auto') === 'auto';
@@ -1009,8 +1012,8 @@ new #[Title('Theme Generator')] class extends Component {
             </flux:card>
         </div>
 
-        {{-- Right Column: Scoped Live Preview (5 cols) --}}
-        <div class="flex flex-col gap-4 lg:col-span-5">
+        {{-- Right Column: Scoped Live Preview (8 cols) --}}
+        <div class="flex flex-col gap-4 xl:sticky xl:top-20 xl:col-span-8">
             <div class="flex items-center justify-between">
                 <flux:heading size="lg">Live Component Preview</flux:heading>
                 <div class="flex items-center gap-2">
@@ -1030,13 +1033,44 @@ new #[Title('Theme Generator')] class extends Component {
                 {!! $this->previewCss !!}
             </style>
 
-            {{-- Preview Wrapper --}}
+            {{-- Windowed Preview Container --}}
             <div
                 data-theme-preview
-                class="flex flex-col gap-6 rounded-2xl border p-6 shadow-sm transition-colors duration-150 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white {{ $previewDark ? 'dark border-zinc-800 bg-zinc-950 text-white' : 'border-zinc-200 bg-white text-zinc-900' }}"
+                class="overflow-hidden rounded-2xl border shadow-sm transition-colors duration-150 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white {{ $previewDark ? 'dark border-zinc-800 bg-zinc-950 text-white' : 'border-zinc-200 bg-white text-zinc-900' }}"
             >
-                @include('lab.examples.theme.preview', ['ramps' => $this->ramps, 'previewDark' => $previewDark])
+                @include('lab.examples.theme.preview', [
+                    'previewDark' => $previewDark,
+                    'previewTab' => $previewTab,
+                    'dashboardSubTab' => $dashboardSubTab,
+                ])
             </div>
+
+            {{-- Collapsible: Generated 11-step color ramps --}}
+            @if (! empty($this->ramps))
+                <details class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                    <summary class="cursor-pointer list-none p-4">
+                        <flux:heading size="sm">Generated color ramps</flux:heading>
+                        <flux:text size="xs" class="text-zinc-500">11-step neutral and accent swatches for the {{ $editorScheme }} scheme.</flux:text>
+                    </summary>
+                    <div class="flex flex-col gap-3 border-t border-zinc-200 p-4 dark:border-zinc-800">
+                        @foreach (['base' => 'zinc (base)', 'accent' => 'accent'] as $rampKey => $rampLabel)
+                            @if (isset($this->ramps[$rampKey]))
+                                <div class="flex flex-col gap-1">
+                                    <flux:text size="xs" class="font-mono text-zinc-500">{{ $rampLabel }}</flux:text>
+                                    <div class="grid grid-cols-11 gap-1">
+                                        @foreach ($this->ramps[$rampKey] as $step => $hex)
+                                            <div class="flex flex-col items-center">
+                                                <div class="h-6 w-full rounded border border-black/10 dark:border-white/10" style="background-color: {{ $hex }}"></div>
+                                                <span class="mt-0.5 font-mono text-[9px] text-zinc-400 opacity-80">{{ $step }}</span>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                </details>
+            @endif
 
             {{-- Advanced: every compiled variable --}}
             <details class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">

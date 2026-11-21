@@ -1,160 +1,187 @@
 @props([
-    'ramps' => [],
-    'previewDark' => null,
+    'previewDark' => false,
+    'previewTab' => 'dashboard',
+    'dashboardSubTab' => 'overview',
 ])
 
-<div class="flex flex-col gap-6">
-    {{-- Swatches overview --}}
-    @if (! empty($ramps))
-        <div class="flex flex-col gap-3">
-            <flux:heading size="sm">Generated ramps</flux:heading>
+<div
+    x-data="{
+        activeTab: @js($previewTab),
+        init() {
+            if (this.$wire && 'previewTab' in this.$wire) {
+                this.$watch('$wire.previewTab', (val) => {
+                    if (val) this.activeTab = val;
+                });
+            }
+        },
+        selectTab(tab) {
+            this.activeTab = tab;
+            const tabEl = $el.querySelector(`[data-flux-tab][name='${tab}']`);
+            if (tabEl && !tabEl.hasAttribute('data-selected')) {
+                tabEl.click();
+            }
+        },
+        get activeHeading() {
+            return {
+                dashboard: 'Dashboard',
+                register: 'Create Account',
+                settings: 'Workspace Settings',
+            }[this.activeTab] ?? 'Dashboard';
+        }
+    }"
+    class="flex flex-col"
+>
+    {{-- macOS-Style Window Chrome Bar --}}
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200/80 bg-zinc-50/90 px-4 py-2.5 dark:border-zinc-800 dark:bg-zinc-900/90">
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-1.5" aria-hidden="true">
+                <span class="size-3 rounded-full bg-red-400/90"></span>
+                <span class="size-3 rounded-full bg-amber-400/90"></span>
+                <span class="size-3 rounded-full bg-emerald-400/90"></span>
+            </div>
+            <span class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Component Preview</span>
+        </div>
 
-            @if (isset($ramps['base']))
-                <div class="flex flex-col gap-1">
-                    <flux:text size="xs" class="font-mono text-zinc-500">zinc (base)</flux:text>
-                    <div class="grid grid-cols-11 gap-1">
-                        @foreach ($ramps['base'] as $step => $hex)
-                            <div class="group relative flex flex-col items-center">
-                                <div class="h-6 w-full rounded border border-black/10 dark:border-white/10" style="background-color: {{ $hex }}"></div>
-                                <span class="mt-0.5 text-[9px] font-mono text-zinc-400 opacity-80">{{ $step }}</span>
-                            </div>
-                        @endforeach
+        <flux:tabs
+            wire:model="previewTab"
+            variant="segmented"
+            size="sm"
+            x-on:input="if ($event.target.value) activeTab = $event.target.value"
+            x-on:change="if ($event.target.value) activeTab = $event.target.value"
+        >
+            <flux:tab name="dashboard" :selected="$previewTab === 'dashboard'" x-on:click="activeTab = 'dashboard'">Dashboard</flux:tab>
+            <flux:tab name="register" :selected="$previewTab === 'register'" x-on:click="activeTab = 'register'">Register</flux:tab>
+            <flux:tab name="settings" :selected="$previewTab === 'settings'" x-on:click="activeTab = 'settings'">Settings</flux:tab>
+        </flux:tabs>
+    </div>
+
+    {{-- Embedded Application Shell (Sidebar + Header + Tabbed Main Content) --}}
+    <div class="flex min-h-[600px]">
+        <flux:sidebar class="hidden w-52 shrink-0 border-e border-zinc-200 bg-zinc-50 p-3 md:flex dark:border-zinc-800 dark:bg-zinc-900">
+            <flux:sidebar.header>
+                <flux:sidebar.brand name="Acme Inc." as="div">
+                    <div class="flex aspect-square size-6 items-center justify-center rounded-full bg-(--color-accent) text-(--color-accent-foreground)">
+                        <flux:icon name="cube" variant="micro" />
                     </div>
+                </flux:sidebar.brand>
+            </flux:sidebar.header>
+
+            <flux:sidebar.nav>
+                <flux:sidebar.item
+                    icon="home"
+                    :current="$previewTab === 'dashboard'"
+                    x-bind:data-current="activeTab === 'dashboard' ? '' : null"
+                    x-on:click="selectTab('dashboard')"
+                >
+                    Dashboard
+                </flux:sidebar.item>
+
+                <flux:sidebar.item
+                    icon="chart-bar"
+                    x-on:click="selectTab('dashboard')"
+                >
+                    Analytics
+                </flux:sidebar.item>
+
+                <flux:sidebar.item
+                    icon="folder"
+                    badge="4"
+                    x-on:click="selectTab('dashboard')"
+                >
+                    Projects
+                </flux:sidebar.item>
+
+                <flux:sidebar.item
+                    icon="user-plus"
+                    :current="$previewTab === 'register'"
+                    x-bind:data-current="activeTab === 'register' ? '' : null"
+                    x-on:click="selectTab('register')"
+                >
+                    Register
+                </flux:sidebar.item>
+            </flux:sidebar.nav>
+
+            <flux:sidebar.spacer />
+
+            <flux:separator variant="subtle" />
+
+            <flux:sidebar.nav>
+                <flux:sidebar.item
+                    icon="cog-6-tooth"
+                    :current="$previewTab === 'settings'"
+                    x-bind:data-current="activeTab === 'settings' ? '' : null"
+                    x-on:click="selectTab('settings')"
+                >
+                    Settings
+                </flux:sidebar.item>
+
+                <flux:sidebar.item icon="question-mark-circle">
+                    Help
+                </flux:sidebar.item>
+            </flux:sidebar.nav>
+        </flux:sidebar>
+
+        <div class="flex min-w-0 flex-1 flex-col bg-white dark:bg-zinc-950">
+            <flux:header class="min-h-14 border-b border-zinc-200 bg-white px-5 lg:px-6 dark:border-zinc-800 dark:bg-zinc-900">
+                <flux:heading size="base" x-text="activeHeading">
+                    {{ match ($previewTab) {
+                        'register' => 'Create Account',
+                        'settings' => 'Workspace Settings',
+                        default => 'Dashboard',
+                    } }}
+                </flux:heading>
+
+                <flux:spacer />
+
+                <div class="flex items-center gap-2.5">
+                    <flux:input
+                        size="sm"
+                        icon="magnifying-glass"
+                        placeholder="Search..."
+                        class="hidden w-44 sm:block"
+                    />
+
+                    <flux:dropdown position="bottom" align="end">
+                        <flux:button type="button" variant="ghost" size="sm" icon:trailing="chevron-down">
+                            John
+                        </flux:button>
+
+                        <flux:menu>
+                            <flux:menu.item icon="home" x-on:click="selectTab('dashboard')">Dashboard</flux:menu.item>
+                            <flux:menu.item icon="user-plus" x-on:click="selectTab('register')">Register form</flux:menu.item>
+                            <flux:menu.item icon="cog-6-tooth" x-on:click="selectTab('settings')">Settings</flux:menu.item>
+                            <flux:menu.separator />
+                            <flux:menu.item icon="arrow-right-start-on-rectangle" variant="danger">Sign out</flux:menu.item>
+                        </flux:menu>
+                    </flux:dropdown>
                 </div>
-            @endif
+            </flux:header>
 
-            @if (isset($ramps['accent']))
-                <div class="flex flex-col gap-1">
-                    <flux:text size="xs" class="font-mono text-zinc-500">accent</flux:text>
-                    <div class="grid grid-cols-11 gap-1">
-                        @foreach ($ramps['accent'] as $step => $hex)
-                            <div class="group relative flex flex-col items-center">
-                                <div class="h-6 w-full rounded border border-black/10 dark:border-white/10" style="background-color: {{ $hex }}"></div>
-                                <span class="mt-0.5 text-[9px] font-mono text-zinc-400 opacity-80">{{ $step }}</span>
-                            </div>
-                        @endforeach
-                    </div>
+            <div class="flex-1 p-5 sm:p-6">
+                <div
+                    data-preview-panel="dashboard"
+                    x-bind:hidden="activeTab !== 'dashboard'"
+                    {{ $previewTab !== 'dashboard' ? 'hidden' : '' }}
+                >
+                    @include('lab.examples.theme.tabs.dashboard', ['dashboardSubTab' => $dashboardSubTab])
                 </div>
-            @endif
-        </div>
-    @endif
 
-    {{-- Interactive buttons --}}
-    <div class="flex flex-col gap-2">
-        <flux:heading size="sm">Buttons</flux:heading>
-        <div class="flex flex-wrap items-center gap-2">
-            <flux:button variant="primary" icon="sparkles">Primary (Accent)</flux:button>
-            <flux:button variant="filled">Filled</flux:button>
-            <flux:button variant="outline">Outline</flux:button>
-            <flux:button variant="subtle">Subtle</flux:button>
-            <flux:button variant="danger" icon="trash">Danger</flux:button>
-            <flux:button variant="ghost">Ghost</flux:button>
-        </div>
-    </div>
+                <div
+                    data-preview-panel="register"
+                    x-bind:hidden="activeTab !== 'register'"
+                    {{ $previewTab !== 'register' ? 'hidden' : '' }}
+                >
+                    @include('lab.examples.theme.tabs.register')
+                </div>
 
-    {{-- Form controls --}}
-    <div class="grid gap-4 sm:grid-cols-2">
-        <div class="flex flex-col gap-3">
-            <flux:field>
-                <flux:label>Sample Input</flux:label>
-                <flux:input placeholder="Type something..." icon="envelope" value="alex@example.com" />
-                <flux:description>Notice the focus ring and corner radius.</flux:description>
-            </flux:field>
-
-            <flux:field>
-                <flux:label>Select dropdown</flux:label>
-                <flux:select placeholder="Choose an option">
-                    <flux:select.option selected>Production environment</flux:select.option>
-                    <flux:select.option>Staging environment</flux:select.option>
-                    <flux:select.option>Local environment</flux:select.option>
-                </flux:select>
-            </flux:field>
-        </div>
-
-        <div class="flex flex-col justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 dark:border-zinc-700/60 dark:bg-zinc-900/40">
-            <div class="flex flex-col gap-3">
-                <flux:heading size="sm">Selectors & Toggles</flux:heading>
-                <flux:checkbox label="Enable real-time synchronization" checked />
-                <flux:checkbox label="Send push notifications" />
-
-                <div class="pt-1">
-                    @if ($previewDark !== null)
-                        <flux:switch wire:model.live="previewDark" label="Dark mode preview helper" />
-                    @else
-                        <flux:switch label="Dark mode preview helper" checked />
-                    @endif
+                <div
+                    data-preview-panel="settings"
+                    x-bind:hidden="activeTab !== 'settings'"
+                    {{ $previewTab !== 'settings' ? 'hidden' : '' }}
+                >
+                    @include('lab.examples.theme.tabs.settings', ['previewDark' => $previewDark])
                 </div>
             </div>
-
-            <flux:radio.group variant="segmented" value="month">
-                <flux:radio value="day">Day</flux:radio>
-                <flux:radio value="week">Week</flux:radio>
-                <flux:radio value="month">Month</flux:radio>
-                <flux:radio value="year">Year</flux:radio>
-            </flux:radio.group>
         </div>
     </div>
-
-    {{-- Badges --}}
-    <div class="flex flex-col gap-2">
-        <flux:heading size="sm">Badges & Tags</flux:heading>
-        <div class="flex flex-wrap items-center gap-2">
-            <flux:badge color="zinc">Zinc</flux:badge>
-            <flux:badge color="blue">Info</flux:badge>
-            <flux:badge color="green">Success</flux:badge>
-            <flux:badge color="amber">Warning</flux:badge>
-            <flux:badge color="red">Danger</flux:badge>
-            <flux:badge color="purple">Purple</flux:badge>
-            <flux:badge size="sm" color="zinc" inset="top bottom">Small</flux:badge>
-        </div>
-    </div>
-
-    {{-- Callouts --}}
-    <div class="grid gap-3 sm:grid-cols-2">
-        <flux:callout variant="info" icon="information-circle">
-            <flux:callout.heading>Information</flux:callout.heading>
-            <flux:callout.text>A new version of the design system is ready.</flux:callout.text>
-        </flux:callout>
-
-        <flux:callout variant="success" icon="check-circle">
-            <flux:callout.heading>Published</flux:callout.heading>
-            <flux:callout.text>Theme changes saved and distributed globally.</flux:callout.text>
-        </flux:callout>
-
-        <flux:callout variant="warning" icon="exclamation-triangle">
-            <flux:callout.heading>Attention</flux:callout.heading>
-            <flux:callout.text>Base contrast is close to minimum accessibility threshold.</flux:callout.text>
-        </flux:callout>
-
-        <flux:callout variant="danger" icon="x-circle">
-            <flux:callout.heading>Error</flux:callout.heading>
-            <flux:callout.text>Could not connect to external asset CDN.</flux:callout.text>
-        </flux:callout>
-    </div>
-
-    {{-- Card preview --}}
-    <flux:card class="flex flex-col gap-4">
-        <div class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700">
-            <div>
-                <flux:heading size="base">Recent Activity</flux:heading>
-                <flux:subheading>Metrics showing card border, spacing, and font rendering.</flux:subheading>
-            </div>
-            <flux:badge color="green" size="sm">Active</flux:badge>
-        </div>
-
-        <div class="grid grid-cols-3 gap-3">
-            <div class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
-                <flux:text size="xs" class="text-zinc-500">Components</flux:text>
-                <flux:heading size="xl">38</flux:heading>
-            </div>
-            <div class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
-                <flux:text size="xs" class="text-zinc-500">Contrast Ratio</flux:text>
-                <flux:heading size="xl">14.2</flux:heading>
-            </div>
-            <div class="rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
-                <flux:text size="xs" class="text-zinc-500">Tokens</flux:text>
-                <flux:heading size="xl">72</flux:heading>
-            </div>
-        </div>
-    </flux:card>
 </div>

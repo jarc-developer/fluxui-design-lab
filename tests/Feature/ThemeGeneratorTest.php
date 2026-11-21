@@ -331,4 +331,46 @@ class ThemeGeneratorTest extends TestCase
         $this->assertSame('#7c3aed', $active->tokens->light->accent);
         $this->assertFalse(app(ActiveTheme::class)->hasWorking());
     }
+
+    public function test_title_renders_in_navbar_and_top_card_consolidates_theme_controls(): void
+    {
+        $html = $this->get('/')
+            ->assertOk()
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/data-flux-navbar[^>]*>[\s\S]*?Theme Generator/i', $html);
+        $this->assertStringContainsString('Theme Name', $html);
+        $this->assertStringContainsString('Presets', $html);
+        $this->assertStringContainsString('Saved Themes', $html);
+        $this->assertStringNotContainsString('Every colour Flux reads, editable per scheme.', $html);
+    }
+
+    public function test_windowed_live_preview_renders_shell_and_three_layout_tabs(): void
+    {
+        $component = Livewire::test('pages::theme-generator')
+            ->assertSet('previewTab', 'dashboard')
+            ->assertSee('Component Preview')
+            ->assertSee('Acme Inc.')
+            ->assertSee('Total Revenue')
+            ->assertSee('Create your account')
+            ->assertSee('Delete workspace');
+
+        $html = $component->html();
+        $this->assertMatchesRegularExpression('/data-theme-preview[\s\S]*?data-flux-sidebar[\s\S]*?data-flux-header/i', $html);
+        $this->assertMatchesRegularExpression('/<ui-tabs[^>]*wire:model="previewTab"[^>]*data-flux-tabs>/i', $html);
+
+        // Principal platform body and preview share the same dark:bg-zinc-950 canvas
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('min-h-screen bg-white dark:bg-zinc-950', false);
+
+        // Switching tabs persists across Livewire token updates
+        $component
+            ->set('previewTab', 'register')
+            ->set('tokens.scheme.light.accent', '#0d9488')
+            ->assertSet('previewTab', 'register')
+            ->assertSee('Create Account')
+            ->set('previewTab', 'settings')
+            ->assertSee('Workspace Settings');
+    }
 }

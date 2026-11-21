@@ -3,8 +3,8 @@
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen bg-white dark:bg-zinc-800">
-        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900">
+    <body class="min-h-screen bg-white dark:bg-zinc-950">
+        <flux:sidebar sticky collapsible="mobile" class="border-e border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
             <flux:sidebar.header>
                 <x-app-logo :sidebar="true" href="{{ route('home') }}" wire:navigate />
                 <flux:sidebar.collapse class="lg:hidden" />
@@ -85,9 +85,12 @@
             </flux:sidebar.nav>
         </flux:sidebar>
 
-        <!-- Mobile header -->
-        <flux:header class="lg:hidden">
-            <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
+        <flux:header sticky class="border-b border-zinc-200 bg-white/95 backdrop-blur-xs dark:border-zinc-800 dark:bg-zinc-900/95">
+            <flux:sidebar.toggle class="lg:hidden me-2" icon="bars-2" inset="left" />
+
+            <flux:navbar class="-my-px">
+                <flux:heading size="lg">{{ $title ?? config('app.name', 'Design Lab') }}</flux:heading>
+            </flux:navbar>
 
             <flux:spacer />
         </flux:header>
