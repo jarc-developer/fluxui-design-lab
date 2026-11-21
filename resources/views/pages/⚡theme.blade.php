@@ -9,17 +9,18 @@ new #[Title('Theme & Tokens')] class extends Component {
 
     public function mount(): void
     {
-        $active = \App\Models\Theme::query()->active()->first();
-        if ($active) {
-            $this->accent = $active->tokens->light->accent;
+        $activeTokens = app(\App\Support\Theme\ActiveTheme::class)->tokens();
+        if ($activeTokens !== null) {
+            $this->accent = $activeTokens->light->accent;
         }
     }
 
     public function with(): array
     {
-        $active = \App\Models\Theme::query()->active()->first();
-        $baseRamp = $active
-            ? app(\App\Support\Theme\ThemeCompiler::class)->ramps($active->tokens)['base'] ?? null
+        $activeTheme = app(\App\Support\Theme\ActiveTheme::class);
+        $activeTokens = $activeTheme->tokens();
+        $baseRamp = $activeTokens !== null
+            ? app(\App\Support\Theme\ThemeCompiler::class)->ramps($activeTokens)['base'] ?? null
             : null;
 
         $shades = $baseRamp
@@ -39,7 +40,7 @@ new #[Title('Theme & Tokens')] class extends Component {
             ];
 
         return [
-            'activeThemeName' => $active?->name ?? 'Default',
+            'activeThemeName' => $activeTheme->name() ?? 'Default',
             'shades' => $shades,
             'spacing' => ['0', '1', '2', '3', '4', '6', '8', '12', '16'],
             'radius' => ['rounded-none', 'rounded-md', 'rounded-lg', 'rounded-xl', 'rounded-full'],

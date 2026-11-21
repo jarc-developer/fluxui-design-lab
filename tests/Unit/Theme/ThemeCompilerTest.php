@@ -73,4 +73,22 @@ class ThemeCompilerTest extends TestCase
         $this->assertArrayNotHasKey('--color-green-500', $vars);
         $this->assertArrayNotHasKey('--color-emerald-500', $vars);
     }
+
+    public function test_ramps_reflect_requested_scheme(): void
+    {
+        $data = ThemeTokens::defaults();
+        $data['scheme']['light']['accent'] = '#4f46e5';
+        $data['scheme']['light']['zinc']['50'] = '#fafafb';
+        $data['scheme']['dark']['accent'] = '#818cf8';
+        $data['scheme']['dark']['zinc']['50'] = '#18181b';
+
+        $tokens = ThemeTokens::fromArray($data);
+
+        $lightRamps = $this->compiler->ramps($tokens, 'light');
+        $darkRamps = $this->compiler->ramps($tokens, 'dark');
+
+        $this->assertSame('#fafafb', $lightRamps['base']['50']);
+        $this->assertSame('#18181b', $darkRamps['base']['50']);
+        $this->assertNotSame($lightRamps['accent'], $darkRamps['accent']);
+    }
 }

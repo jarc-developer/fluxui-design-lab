@@ -87,14 +87,16 @@ final class ThemeCompiler
      *
      * @return array<string, array<int|string, string>>
      */
-    public function ramps(ThemeTokens $tokens): array
+    public function ramps(ThemeTokens $tokens, string $scheme = 'light'): array
     {
+        $activeScheme = $scheme === 'dark' ? $tokens->darkScheme() : $tokens->light;
+
         $ramps = [
-            'accent' => Palette::fromSeed(Color::fromHex($tokens->light->accent)),
-            'base' => $tokens->light->zinc,
+            'accent' => Palette::fromSeed(Color::fromHex($activeScheme->accent)),
+            'base' => $activeScheme->zinc,
         ];
 
-        foreach ($tokens->light->status as $status => $seed) {
+        foreach ($activeScheme->status as $status => $seed) {
             if ($seed !== null) {
                 $ramps[$status] = Palette::fromSeed(Color::fromHex($seed));
             }

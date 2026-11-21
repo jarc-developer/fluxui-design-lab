@@ -68,6 +68,12 @@
 
             <flux:sidebar.spacer />
 
+            <flux:radio.group x-data variant="segmented" size="sm" x-model="$flux.appearance" aria-label="{{ __('Appearance') }}">
+                <flux:radio value="light" icon="sun" title="{{ __('Light') }}" />
+                <flux:radio value="dark" icon="moon" title="{{ __('Dark') }}" />
+                <flux:radio value="system" icon="computer-desktop" title="{{ __('System') }}" />
+            </flux:radio.group>
+
             <flux:sidebar.nav>
                 <flux:sidebar.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
                     {{ __('Repository') }}

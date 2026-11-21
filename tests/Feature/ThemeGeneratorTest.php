@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Theme;
+use App\Support\Theme\ActiveTheme;
 use App\Support\Theme\Legacy\LegacyThemeTokens;
 use App\Support\Theme\Presets;
 use App\Support\Theme\ThemeCodec;
@@ -41,6 +42,16 @@ class ThemeGeneratorTest extends TestCase
             ->assertSet('tokens.scheme.light.accent', '#262626')
             ->set('tokens.scheme.light.accent', '#e11d48')
             ->assertSeeHtml('--color-accent:#e11d48');
+    }
+
+    public function test_color_slots_use_the_official_flux_color_picker(): void
+    {
+        $html = Livewire::test('pages::theme-generator')->html();
+
+        // Accent trio, zinc steps and status seeds all edit through the
+        // official Flux color picker — no native color inputs remain.
+        $this->assertStringContainsString('data-flux-color-picker', $html);
+        $this->assertStringNotContainsString('type="color"', $html);
     }
 
     public function test_custom_accent_foreground_is_stored_and_rendered(): void
@@ -239,5 +250,85 @@ class ThemeGeneratorTest extends TestCase
         $this->assertSame(0, $statusJson);
         $outputJson = $kernel->output();
         $this->assertStringContainsString('"ibm-plex-sans"', $outputJson);
+    }
+
+    public function test_changing_editor_scheme_synchronizes_preview_settings_and_ramps(): void
+    {
+        Livewire::test('pages::theme-generator')
+            ->call('loadPreset', 'indigo')
+            ->assertSet('editorScheme', 'light')
+            ->assertSet('previewDark', false)
+            ->assertSee('The brand colour trio for the light scheme.')
+            ->assertSee('Light Preview')
+            ->set('editorScheme', 'dark')
+            ->assertSet('previewDark', true)
+            ->assertSee('The brand colour trio for the dark scheme.')
+            ->assertSee('Dark Preview');
+    }
+
+    public function test_toggling_preview_scheme_synchronizes_editor_settings(): void
+    {
+        Livewire::test('pages::theme-generator')
+            ->assertSet('editorScheme', 'light')
+            ->assertSet('previewDark', false)
+            ->call('toggleScheme')
+            ->assertSet('editorScheme', 'dark')
+            ->assertSet('previewDark', true)
+            ->assertSee('The brand colour trio for the dark scheme.')
+            ->set('previewDark', false)
+            ->assertSet('editorScheme', 'light')
+            ->assertSee('The brand colour trio for the light scheme.');
+    }
+
+    public function test_global_appearance_and_generator_scheme_sync_wiring_is_rendered(): void
+    {
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $response->assertSee('x-model="$flux.appearance"', false);
+        $response->assertSee('$watch(\'$flux.dark\'', false);
+        $response->assertSee('$wire.$watch(\'editorScheme\'', false);
+    }
+
+    public function test_theme_changes_apply_live_across_all_platform_pages(): void
+    {
+        // Edit tokens and load a preset without clicking Activate Globally
+        Livewire::test('pages::theme-generator')
+            ->call('loadPreset', 'cupcake')
+            ->set('tokens.scheme.light.accent', '#e11d48')
+            ->assertSeeHtml(':root{--color-accent:#e11d48');
+
+        // Catalog and foundation pages immediately reflect the live theme changes
+        $this->get('/components/forms')
+            ->assertOk()
+            ->assertSee('<style id="lab-theme">', false)
+            ->assertSee('--color-accent:#e11d48', false)
+            ->assertSee('nunito', false);
+
+        $this->get('/components/actions')
+            ->assertOk()
+            ->assertSee('--color-accent:#e11d48', false);
+
+        $this->get('/theme')
+            ->assertOk()
+            ->assertSee('#e11d48');
+
+        // Navigating back to the generator restores the live working theme
+        Livewire::test('pages::theme-generator')
+            ->assertSet('name', 'Cupcake')
+            ->assertSet('tokens.scheme.light.accent', '#e11d48');
+    }
+
+    public function test_activating_globally_persists_live_theme_to_database(): void
+    {
+        Livewire::test('pages::theme-generator')
+            ->set('name', 'Platform Live')
+            ->set('tokens.scheme.light.accent', '#7c3aed')
+            ->call('activate');
+
+        $active = Theme::query()->active()->firstOrFail();
+        $this->assertSame('Platform Live', $active->name);
+        $this->assertSame('#7c3aed', $active->tokens->light->accent);
+        $this->assertFalse(app(ActiveTheme::class)->hasWorking());
     }
 }

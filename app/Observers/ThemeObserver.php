@@ -23,6 +23,7 @@ class ThemeObserver
 
     public static function flush(): void
     {
+        Cache::forget(ActiveTheme::WORKING_KEY);
         Cache::forget(ActiveTheme::CACHE_KEY);
         app(ActiveTheme::class)->forget();
     }

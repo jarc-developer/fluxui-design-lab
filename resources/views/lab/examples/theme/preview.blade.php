@@ -1,5 +1,6 @@
 @props([
     'ramps' => [],
+    'previewDark' => null,
 ])
 
 <div class="flex flex-col gap-6">
@@ -77,7 +78,11 @@
                 <flux:checkbox label="Send push notifications" />
 
                 <div class="pt-1">
-                    <flux:switch label="Dark mode preview helper" checked />
+                    @if ($previewDark !== null)
+                        <flux:switch wire:model.live="previewDark" label="Dark mode preview helper" />
+                    @else
+                        <flux:switch label="Dark mode preview helper" checked />
+                    @endif
                 </div>
             </div>
 

@@ -18,6 +18,8 @@ class ActiveTheme
 {
     public const CACHE_KEY = 'theme.active';
 
+    public const WORKING_KEY = 'theme.working';
+
     /** @var array{css: string, font: string|null, name: string|null}|null */
     private ?array $resolved = null;
 
@@ -38,6 +40,62 @@ class ActiveTheme
         return $this->resolve()['name'];
     }
 
+    public function tokens(): ?ThemeTokens
+    {
+        $working = $this->working();
+        if ($working !== null) {
+            return $working['tokens'];
+        }
+
+        return $this->activeTheme()?->tokens;
+    }
+
+    public function setWorking(ThemeTokens $tokens, string $name = 'Custom Theme', ?int $selectedThemeId = null): void
+    {
+        Cache::forever(self::WORKING_KEY, [
+            'tokens' => $tokens->toArray(),
+            'name' => $name,
+            'selectedThemeId' => $selectedThemeId,
+        ]);
+
+        Cache::forget(self::CACHE_KEY);
+        $this->forget();
+    }
+
+    public function clearWorking(): void
+    {
+        Cache::forget(self::WORKING_KEY);
+        Cache::forget(self::CACHE_KEY);
+        $this->forget();
+    }
+
+    public function hasWorking(): bool
+    {
+        return $this->working() !== null;
+    }
+
+    /**
+     * @return array{tokens: ThemeTokens, name: string, selectedThemeId: int|null}|null
+     */
+    public function working(): ?array
+    {
+        $raw = Cache::get(self::WORKING_KEY);
+        if (! is_array($raw) || ! is_array($raw['tokens'] ?? null)) {
+            return null;
+        }
+
+        $tokens = ThemeTokens::tryFrom($raw['tokens']);
+        if ($tokens === null) {
+            return null;
+        }
+
+        return [
+            'tokens' => $tokens,
+            'name' => is_string($raw['name'] ?? null) ? $raw['name'] : 'Custom Theme',
+            'selectedThemeId' => is_int($raw['selectedThemeId'] ?? null) ? $raw['selectedThemeId'] : null,
+        ];
+    }
+
     public function forget(): void
     {
         $this->resolved = null;
@@ -49,6 +107,15 @@ class ActiveTheme
     private function resolve(): array
     {
         return $this->resolved ??= Cache::rememberForever(self::CACHE_KEY, function (): array {
+            $working = $this->working();
+            if ($working !== null) {
+                return [
+                    'css' => $this->compiler->runtime($working['tokens']),
+                    'font' => $working['tokens']->fontUrl(),
+                    'name' => $working['name'],
+                ];
+            }
+
             $theme = $this->activeTheme();
 
             if ($theme === null) {

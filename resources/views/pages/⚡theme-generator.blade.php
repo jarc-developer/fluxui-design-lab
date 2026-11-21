@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Theme;
+use App\Support\Theme\ActiveTheme;
 use App\Support\Theme\Color;
 use App\Support\Theme\DaisyThemeMapper;
 use App\Support\Theme\DarkScheme;
@@ -48,19 +49,31 @@ new #[Title('Theme Generator')] class extends Component {
 
     public function mount(): void
     {
-        // 1. Share URL code (?theme=...) takes priority
+        // 1. Share URL code (?theme=...) takes priority and applies platform-wide
         if ($this->themeCode !== '') {
             $decoded = ThemeCodec::decode($this->themeCode);
             if ($decoded !== null) {
+                $this->selectedThemeId = null;
                 $this->tokens = $decoded->toArray();
                 $this->name = 'Shared Theme';
-                $this->syncThemeCode();
+                $this->applyPlatformTheme();
 
                 return;
             }
         }
 
-        // 2. Active theme in DB
+        // 2. Working live theme across the platform
+        $working = app(ActiveTheme::class)->working();
+        if ($working !== null) {
+            $this->selectedThemeId = $working['selectedThemeId'];
+            $this->name = $working['name'];
+            $this->tokens = $working['tokens']->toArray();
+            $this->syncThemeCode();
+
+            return;
+        }
+
+        // 3. Active theme in DB
         $active = Theme::query()->active()->first();
         if ($active !== null) {
             $this->selectedThemeId = $active->id;
@@ -71,7 +84,7 @@ new #[Title('Theme Generator')] class extends Component {
             return;
         }
 
-        // 3. Fallback defaults
+        // 4. Fallback defaults
         $this->tokens = ThemeTokens::defaults();
         $this->syncThemeCode();
     }
@@ -84,7 +97,14 @@ new #[Title('Theme Generator')] class extends Component {
             $this->materializeDark();
         }
 
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
+    }
+
+    public function updatedName(): void
+    {
+        if (app(ActiveTheme::class)->hasWorking()) {
+            $this->applyPlatformTheme();
+        }
     }
 
     public function syncThemeCode(): void
@@ -93,6 +113,37 @@ new #[Title('Theme Generator')] class extends Component {
         if ($tokens !== null) {
             $this->themeCode = ThemeCodec::encode($tokens);
         }
+    }
+
+    public function applyPlatformTheme(): void
+    {
+        $tokens = ThemeTokens::tryFrom($this->tokens);
+        if ($tokens !== null) {
+            $this->themeCode = ThemeCodec::encode($tokens);
+            app(ActiveTheme::class)->setWorking($tokens, $this->name, $this->selectedThemeId);
+        }
+    }
+
+    public function setScheme(string $scheme): void
+    {
+        $normalised = $scheme === 'dark' ? 'dark' : 'light';
+        $this->editorScheme = $normalised;
+        $this->previewDark = $normalised === 'dark';
+    }
+
+    public function toggleScheme(): void
+    {
+        $this->setScheme($this->editorScheme === 'dark' ? 'light' : 'dark');
+    }
+
+    public function updatedEditorScheme(string $value): void
+    {
+        $this->setScheme($value);
+    }
+
+    public function updatedPreviewDark(bool $value): void
+    {
+        $this->setScheme($value ? 'dark' : 'light');
     }
 
     #[Computed]
@@ -104,7 +155,10 @@ new #[Title('Theme Generator')] class extends Component {
     #[Computed]
     public function previewCss(): string
     {
-        return app(ThemeCompiler::class)->runtime($this->previewTokens, '[data-theme-preview]');
+        $compiler = app(ThemeCompiler::class);
+
+        return $compiler->runtime($this->previewTokens)
+            .$compiler->runtime($this->previewTokens, '[data-theme-preview]');
     }
 
     /**
@@ -137,12 +191,12 @@ new #[Title('Theme Generator')] class extends Component {
     }
 
     /**
-     * @return array<string, array<string, string>>
+     * @return array<string, array<int|string, string>>
      */
     #[Computed]
     public function ramps(): array
     {
-        return app(ThemeCompiler::class)->ramps($this->previewTokens);
+        return app(ThemeCompiler::class)->ramps($this->previewTokens, $this->editorScheme);
     }
 
     #[Computed]
@@ -175,7 +229,7 @@ new #[Title('Theme Generator')] class extends Component {
             $this->tokens['scheme']['dark'] = null;
         }
 
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
     }
 
     /**
@@ -189,7 +243,7 @@ new #[Title('Theme Generator')] class extends Component {
         }
 
         data_set($this->tokens, "scheme.dark.{$path}", $value === '' ? null : $value);
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
     }
 
     public function resetSlot(string $scheme, string $path): void
@@ -203,7 +257,7 @@ new #[Title('Theme Generator')] class extends Component {
         }
 
         data_set($this->tokens, "scheme.light.{$path}", $suggestion);
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
     }
 
     /**
@@ -226,7 +280,7 @@ new #[Title('Theme Generator')] class extends Component {
             $this->tokens['scheme'][$scheme]['zinc'][$step] = $hex;
         }
 
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
         Flux::toast(text: 'Neutral ramp filled from the tint controls.', variant: 'success');
     }
 
@@ -243,7 +297,7 @@ new #[Title('Theme Generator')] class extends Component {
         $existing = Theme::query()->where('slug', $key)->first();
         $this->selectedThemeId = $existing?->id;
 
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
         Flux::toast(text: "Loaded {$preset['name']} preset.", variant: 'success');
     }
 
@@ -257,7 +311,13 @@ new #[Title('Theme Generator')] class extends Component {
         $this->selectedThemeId = $theme->id;
         $this->name = $theme->name;
         $this->tokens = $theme->tokens->toArray();
-        $this->syncThemeCode();
+
+        if ($theme->is_active) {
+            app(ActiveTheme::class)->clearWorking();
+            $this->syncThemeCode();
+        } else {
+            $this->applyPlatformTheme();
+        }
 
         Flux::toast(text: "Loaded theme [{$theme->name}].", variant: 'success');
     }
@@ -267,7 +327,7 @@ new #[Title('Theme Generator')] class extends Component {
         $this->tokens = Presets::random();
         $this->selectedThemeId = null;
         $this->name = 'Random '.ucfirst((string) $this->tokens['font']);
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
 
         Flux::toast(text: 'Generated a random theme palette.', variant: 'success');
     }
@@ -277,7 +337,7 @@ new #[Title('Theme Generator')] class extends Component {
         $this->tokens = ThemeTokens::defaults();
         $this->name = 'Flux default';
         $this->selectedThemeId = Theme::query()->where('slug', 'flux-default')->value('id');
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
 
         Flux::toast(text: 'Reset to default theme values.', variant: 'success');
     }
@@ -297,6 +357,10 @@ new #[Title('Theme Generator')] class extends Component {
                     'name' => $this->name,
                     'tokens' => $tokens,
                 ]);
+
+                if (! $theme->is_active) {
+                    $this->applyPlatformTheme();
+                }
 
                 Flux::toast(text: "Theme [{$theme->name}] updated.", variant: 'success');
 
@@ -323,6 +387,7 @@ new #[Title('Theme Generator')] class extends Component {
         ]);
 
         $this->selectedThemeId = $theme->id;
+        $this->applyPlatformTheme();
 
         Flux::toast(text: "Theme [{$theme->name}] saved as new theme.", variant: 'success');
     }
@@ -340,7 +405,8 @@ new #[Title('Theme Generator')] class extends Component {
             if ($theme) {
                 $theme->update(['name' => $this->name, 'tokens' => $tokens]);
                 $theme->activate();
-                $this->redirect(route('home', ['theme' => $this->themeCode]), navigate: false);
+                $this->syncThemeCode();
+                Flux::toast(text: "Theme [{$theme->name}] saved as active project theme.", variant: 'success');
 
                 return;
             }
@@ -355,8 +421,9 @@ new #[Title('Theme Generator')] class extends Component {
 
         $this->selectedThemeId = $theme->id;
         $theme->activate();
+        $this->syncThemeCode();
 
-        $this->redirect(route('home', ['theme' => $this->themeCode]), navigate: false);
+        Flux::toast(text: "Theme [{$theme->name}] saved as active project theme.", variant: 'success');
     }
 
     public function deleteTheme(int $id): void
@@ -372,11 +439,16 @@ new #[Title('Theme Generator')] class extends Component {
             return;
         }
 
+        $hadWorking = app(ActiveTheme::class)->hasWorking();
         $name = $theme->name;
         $theme->delete();
 
         if ($this->selectedThemeId === $id) {
             $this->selectedThemeId = null;
+        }
+
+        if ($hadWorking) {
+            $this->applyPlatformTheme();
         }
 
         Flux::toast(text: "Theme [{$name}] deleted.", variant: 'success');
@@ -399,7 +471,7 @@ new #[Title('Theme Generator')] class extends Component {
                 $this->name = ucfirst($daisy['name']);
                 $this->importReport = $daisy['dropped'];
                 $this->importPayload = '';
-                $this->syncThemeCode();
+                $this->applyPlatformTheme();
                 $this->modal('import-modal')->close();
 
                 $dropped = count($daisy['dropped']);
@@ -420,7 +492,7 @@ new #[Title('Theme Generator')] class extends Component {
             $this->name = 'Imported Theme';
             $this->importReport = [];
             $this->importPayload = '';
-            $this->syncThemeCode();
+            $this->applyPlatformTheme();
             $this->modal('import-modal')->close();
             Flux::toast(text: 'Theme imported successfully from share code.', variant: 'success');
 
@@ -437,7 +509,7 @@ new #[Title('Theme Generator')] class extends Component {
                 $this->name = 'Imported Theme';
                 $this->importReport = [];
                 $this->importPayload = '';
-                $this->syncThemeCode();
+                $this->applyPlatformTheme();
                 $this->modal('import-modal')->close();
                 Flux::toast(text: 'Theme imported successfully from JSON.', variant: 'success');
 
@@ -451,7 +523,7 @@ new #[Title('Theme Generator')] class extends Component {
     public function clearStatus(string $status): void
     {
         $this->tokens['scheme'][$this->editorScheme]['status'][$status] = null;
-        $this->syncThemeCode();
+        $this->applyPlatformTheme();
     }
 
     /**
@@ -510,7 +582,31 @@ new #[Title('Theme Generator')] class extends Component {
     }
 }; ?>
 
-<div class="flex w-full flex-1 flex-col gap-6">
+<div
+    class="flex w-full flex-1 flex-col gap-6"
+    x-data="{
+        init() {
+            const initialScheme = this.$flux.dark ? 'dark' : 'light';
+            if (this.$wire.editorScheme !== initialScheme) {
+                this.$wire.$set('editorScheme', initialScheme);
+            }
+
+            this.$watch('$flux.dark', (isDark) => {
+                const scheme = isDark ? 'dark' : 'light';
+                if (this.$wire.editorScheme !== scheme) {
+                    this.$wire.$set('editorScheme', scheme);
+                }
+            });
+
+            this.$wire.$watch('editorScheme', (scheme) => {
+                const isDark = scheme === 'dark';
+                if (this.$flux.dark !== isDark) {
+                    this.$flux.dark = isDark;
+                }
+            });
+        }
+    }"
+>
     {{-- Head Font link for live preview font rendering if external font selected --}}
     @if ($this->previewTokens->fontUrl())
         <link rel="preconnect" href="https://fonts.bunny.net">
@@ -522,7 +618,9 @@ new #[Title('Theme Generator')] class extends Component {
         <div class="flex flex-col gap-1">
             <div class="flex items-center gap-2">
                 <flux:heading size="xl">Theme Generator</flux:heading>
-                @if ($selectedThemeId && ($activeTheme = $this->savedThemes->firstWhere('id', $selectedThemeId)) && $activeTheme->is_active)
+                @if (app(\App\Support\Theme\ActiveTheme::class)->hasWorking())
+                    <flux:badge color="blue" size="sm" icon="bolt">Live Across Platform</flux:badge>
+                @elseif ($selectedThemeId && ($activeTheme = $this->savedThemes->firstWhere('id', $selectedThemeId)) && $activeTheme->is_active)
                     <flux:badge color="green" size="sm" icon="check">Active Project Theme</flux:badge>
                 @endif
             </div>
@@ -590,7 +688,7 @@ new #[Title('Theme Generator')] class extends Component {
             <flux:card class="flex flex-col gap-3">
                 <flux:field>
                     <flux:label>Theme Name</flux:label>
-                    <flux:input wire:model.defer="name" placeholder="e.g. Ocean Blue" />
+                    <flux:input wire:model.live.debounce.300ms="name" placeholder="e.g. Ocean Blue" />
                 </flux:field>
             </flux:card>
 
@@ -602,6 +700,13 @@ new #[Title('Theme Generator')] class extends Component {
                 </div>
                 <div class="flex flex-col gap-1.5">
                     @foreach (\App\Support\Theme\Presets::all() as $slug => $preset)
+                        @php
+                            $presetTokens = \App\Support\Theme\ThemeTokens::fromArray($preset['tokens']);
+                            $presetScheme = $editorScheme === 'dark' ? $presetTokens->darkScheme() : $presetTokens->light;
+                            $presetSurface = $editorScheme === 'dark'
+                                ? ($presetScheme->zinc['900'] ?? '#171717')
+                                : ($presetScheme->zinc['50'] ?? '#fafafa');
+                        @endphp
                         <button
                             type="button"
                             wire:click="loadPreset('{{ $slug }}')"
@@ -609,8 +714,8 @@ new #[Title('Theme Generator')] class extends Component {
                         >
                             <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $preset['name'] }}</span>
                             <div class="flex items-center gap-1.5">
-                                <span class="size-4 rounded-full border border-black/10" style="background-color: {{ $preset['tokens']['scheme']['light']['accent'] }}"></span>
-                                <span class="size-4 rounded-full border border-black/10" style="background-color: {{ $preset['tokens']['scheme']['light']['zinc']['50'] }}"></span>
+                                <span class="size-4 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $presetScheme->accent }}"></span>
+                                <span class="size-4 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $presetSurface }}"></span>
                             </div>
                         </button>
                     @endforeach
@@ -622,13 +727,16 @@ new #[Title('Theme Generator')] class extends Component {
                 <flux:heading size="sm">Saved Themes</flux:heading>
                 <div class="flex max-h-72 flex-col gap-1 overflow-y-auto">
                     @forelse ($this->savedThemes as $savedTheme)
+                        @php
+                            $savedScheme = $editorScheme === 'dark' ? $savedTheme->tokens->darkScheme() : $savedTheme->tokens->light;
+                        @endphp
                         <div class="flex items-center justify-between rounded-lg px-2.5 py-1.5 transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 {{ $selectedThemeId === $savedTheme->id ? 'bg-zinc-100 dark:bg-zinc-800 ring-1 ring-zinc-300 dark:ring-zinc-600' : '' }}">
                             <button
                                 type="button"
                                 wire:click="loadTheme({{ $savedTheme->id }})"
                                 class="flex flex-1 items-center gap-2 text-start text-sm text-zinc-800 dark:text-zinc-200"
                             >
-                                <span class="size-3.5 shrink-0 rounded-full" style="background-color: {{ $savedTheme->tokens->light->accent }}"></span>
+                                <span class="size-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $savedScheme->accent }}"></span>
                                 <span class="truncate">{{ $savedTheme->name }}</span>
                                 @if ($savedTheme->is_active)
                                     <flux:badge color="green" size="sm">active</flux:badge>
@@ -715,20 +823,24 @@ new #[Title('Theme Generator')] class extends Component {
                                     style="background-color: {{ $this->suggestions[$scheme][$slot['key']] ?? 'transparent' }}"
                                 ></button>
                                 @if ($isAutoDark)
-                                    <span class="w-16 text-end font-mono text-xs text-zinc-500">{{ $this->suggestions['dark'][$slot['key']] }}</span>
-                                    <input
-                                        type="color"
+                                    <flux:color-picker
+                                        type="button"
+                                        size="sm"
+                                        class="w-28"
+                                        swatches
+                                        dropper
                                         value="{{ $this->suggestions['dark'][$slot['key']] }}"
                                         wire:change="setDarkSlot('{{ $slot['key'] }}', $event.target.value)"
-                                        class="size-10 cursor-pointer rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent p-0.5"
                                     />
                                 @else
-                                    <input
-                                        type="color"
-                                        wire:model.live.debounce.100ms="tokens.scheme.{{ $scheme }}.{{ $slot['key'] }}"
-                                        class="size-10 cursor-pointer rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent p-0.5"
+                                    <flux:color-picker
+                                        type="button"
+                                        size="sm"
+                                        class="w-28"
+                                        swatches
+                                        dropper
+                                        wire:model.live.debounce.150ms="tokens.scheme.{{ $scheme }}.{{ $slot['key'] }}"
                                     />
-                                    <flux:input wire:model.live.debounce.150ms="tokens.scheme.{{ $scheme }}.{{ $slot['key'] }}" class="w-24 font-mono text-xs uppercase" />
                                 @endif
                             </div>
                         </div>
@@ -758,20 +870,24 @@ new #[Title('Theme Generator')] class extends Component {
                                         style="background-color: {{ $this->suggestions[$scheme]['zinc'][$step] ?? 'transparent' }}"
                                     ></button>
                                     @if ($isAutoDark)
-                                        <span class="w-16 text-end font-mono text-xs text-zinc-500">{{ $this->suggestions['dark']['zinc'][$step] }}</span>
-                                        <input
-                                            type="color"
+                                        <flux:color-picker
+                                            type="button"
+                                            size="sm"
+                                            class="w-28"
+                                            swatches
+                                            dropper
                                             value="{{ $this->suggestions['dark']['zinc'][$step] }}"
                                             wire:change="setDarkSlot('zinc.{{ $step }}', $event.target.value)"
-                                            class="size-10 cursor-pointer rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent p-0.5"
                                         />
                                     @else
-                                        <input
-                                            type="color"
-                                            wire:model.live.debounce.100ms="tokens.scheme.{{ $scheme }}.zinc.{{ $step }}"
-                                            class="size-10 cursor-pointer rounded-lg border border-zinc-300 dark:border-zinc-700 bg-transparent p-0.5"
+                                        <flux:color-picker
+                                            type="button"
+                                            size="sm"
+                                            class="w-28"
+                                            swatches
+                                            dropper
+                                            wire:model.live.debounce.150ms="tokens.scheme.{{ $scheme }}.zinc.{{ $step }}"
                                         />
-                                        <flux:input wire:model.live.debounce.150ms="tokens.scheme.{{ $scheme }}.zinc.{{ $step }}" class="w-24 font-mono text-xs uppercase" />
                                     @endif
                                 </div>
                             </div>
@@ -815,16 +931,14 @@ new #[Title('Theme Generator')] class extends Component {
                             @if ($isAutoDark)
                                 <flux:text size="xs" class="text-zinc-400">same as light (synthesized dark uses light seeds)</flux:text>
                             @else
-                                <div class="flex items-center gap-2">
-                                    <input
-                                        type="color"
-                                        wire:model.live.debounce.100ms="tokens.scheme.{{ $scheme }}.status.{{ $key }}"
-                                        class="size-8 cursor-pointer rounded border border-zinc-300 dark:border-zinc-700 bg-transparent p-0.5"
-                                    />
-                                    <span class="font-mono text-xs text-zinc-600 dark:text-zinc-400">
-                                        {{ $tokens['scheme'][$scheme]['status'][$key] ?? 'default' }}
-                                    </span>
-                                </div>
+                                <flux:color-picker
+                                    type="button"
+                                    size="sm"
+                                    swatches
+                                    dropper
+                                    placeholder="Tailwind default"
+                                    wire:model.live.debounce.150ms="tokens.scheme.{{ $scheme }}.status.{{ $key }}"
+                                />
                             @endif
                         </div>
                     @endforeach
@@ -901,10 +1015,10 @@ new #[Title('Theme Generator')] class extends Component {
                 <flux:heading size="lg">Live Component Preview</flux:heading>
                 <div class="flex items-center gap-2">
                     <flux:button
-                        wire:click="$toggle('previewDark')"
+                        wire:click="toggleScheme"
                         size="sm"
                         variant="subtle"
-                        icon="{{ $previewDark ? 'sun' : 'moon' }}"
+                        icon="{{ $previewDark ? 'moon' : 'sun' }}"
                     >
                         {{ $previewDark ? 'Dark Preview' : 'Light Preview' }}
                     </flux:button>
@@ -919,9 +1033,9 @@ new #[Title('Theme Generator')] class extends Component {
             {{-- Preview Wrapper --}}
             <div
                 data-theme-preview
-                class="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm transition-colors duration-150 {{ $previewDark ? 'dark bg-zinc-950 text-white' : 'text-zinc-900' }}"
+                class="flex flex-col gap-6 rounded-2xl border p-6 shadow-sm transition-colors duration-150 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white {{ $previewDark ? 'dark border-zinc-800 bg-zinc-950 text-white' : 'border-zinc-200 bg-white text-zinc-900' }}"
             >
-                @include('lab.examples.theme.preview', ['ramps' => $this->ramps])
+                @include('lab.examples.theme.preview', ['ramps' => $this->ramps, 'previewDark' => $previewDark])
             </div>
 
             {{-- Advanced: every compiled variable --}}
@@ -932,7 +1046,7 @@ new #[Title('Theme Generator')] class extends Component {
                 </summary>
                 <div class="grid gap-4 border-t border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800">
                     @foreach (['light' => ':root (light)', 'dark' => '.dark'] as $scope => $label)
-                        <div class="flex flex-col gap-1">
+                        <div class="flex flex-col gap-1 rounded-lg p-2 {{ $editorScheme === $scope ? 'bg-zinc-50 ring-1 ring-zinc-200 dark:bg-zinc-800/60 dark:ring-zinc-700' : '' }}">
                             <flux:text size="xs" class="font-mono text-zinc-500">{{ $label }}</flux:text>
                             <div class="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
                                 @foreach ($this->previewVariables[$scope] as $var => $value)
