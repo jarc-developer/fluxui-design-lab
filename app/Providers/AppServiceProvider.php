@@ -64,10 +64,9 @@ class AppServiceProvider extends ServiceProvider
      * component such as flux:editor with any other content is reported as having a
      * second root even though the rendered HTML is valid.
      *
-     * This lab exists to render every one of those components, so the heuristic is
-     * switched off. It is debug-only diagnostics, it is removed defensively if a
-     * future Livewire release changes the internals, and the catalog pages are all
-     * written with a single root element regardless.
+     * The theme generator combines Flux and Blaze custom elements in a single
+     * workspace, so this debug-only heuristic is disabled defensively while the
+     * page still maintains a single Livewire root element.
      */
     protected function disableLivewireRootElementHeuristic(): void
     {

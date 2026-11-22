@@ -163,7 +163,7 @@
                     x-bind:hidden="activeTab !== 'dashboard'"
                     {{ $previewTab !== 'dashboard' ? 'hidden' : '' }}
                 >
-                    @include('lab.examples.theme.tabs.dashboard', ['dashboardSubTab' => $dashboardSubTab])
+                    @include('partials.theme-preview.tabs.dashboard', ['dashboardSubTab' => $dashboardSubTab])
                 </div>
 
                 <div
@@ -171,7 +171,7 @@
                     x-bind:hidden="activeTab !== 'register'"
                     {{ $previewTab !== 'register' ? 'hidden' : '' }}
                 >
-                    @include('lab.examples.theme.tabs.register')
+                    @include('partials.theme-preview.tabs.register')
                 </div>
 
                 <div
@@ -179,7 +179,7 @@
                     x-bind:hidden="activeTab !== 'settings'"
                     {{ $previewTab !== 'settings' ? 'hidden' : '' }}
                 >
-                    @include('lab.examples.theme.tabs.settings', ['previewDark' => $previewDark])
+                    @include('partials.theme-preview.tabs.settings', ['previewDark' => $previewDark])
                 </div>
             </div>
         </div>

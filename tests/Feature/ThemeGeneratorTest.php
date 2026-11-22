@@ -32,6 +32,7 @@ class ThemeGeneratorTest extends TestCase
         $response = $this->get('/');
 
         $response->assertOk();
+        $response->assertSee('Flux Themes');
         $response->assertSee('Theme Generator');
         $response->assertSee('Live Component Preview');
     }
@@ -110,7 +111,7 @@ class ThemeGeneratorTest extends TestCase
         $tokens['darkMode'] = 'auto';
         $tokens['scheme']['dark'] = null;
 
-        $component = Livewire::test('pages::theme-generator')
+        Livewire::test('pages::theme-generator')
             ->set('tokens', $tokens)
             ->call('setDarkSlot', 'zinc.50', '#101010')
             ->set('name', 'Dark Tweaked')
@@ -152,7 +153,7 @@ class ThemeGeneratorTest extends TestCase
             ->assertSet('importReport', []);
     }
 
-    public function test_activating_a_theme_updates_global_head_styles_across_the_app(): void
+    public function test_activating_a_theme_updates_global_head_styles(): void
     {
         // Initially Flux default is active
         $response = $this->get('/');
@@ -164,17 +165,11 @@ class ThemeGeneratorTest extends TestCase
         $emerald = Theme::query()->where('slug', 'emerald')->firstOrFail();
         $emerald->activate();
 
-        // The root page now serves the Emerald accent
+        // The landing page head now serves the Emerald accent
         $response = $this->get('/');
         $response->assertOk();
         $response->assertSee('<style id="lab-theme">', false);
         $response->assertSee('--color-accent:#059669', false);
-
-        // Catalog pages reflect the active theme too
-        $catalogResponse = $this->get('/components/forms');
-        $catalogResponse->assertOk();
-        $catalogResponse->assertSee('<style id="lab-theme">', false);
-        $catalogResponse->assertSee('--color-accent:#059669', false);
     }
 
     public function test_save_as_creates_a_new_theme_record(): void
@@ -290,7 +285,7 @@ class ThemeGeneratorTest extends TestCase
         $response->assertSee('$wire.$watch(\'editorScheme\'', false);
     }
 
-    public function test_theme_changes_apply_live_across_all_platform_pages(): void
+    public function test_theme_changes_apply_live_and_persist_in_working_state(): void
     {
         // Edit tokens and load a preset without clicking Activate Globally
         Livewire::test('pages::theme-generator')
@@ -298,22 +293,14 @@ class ThemeGeneratorTest extends TestCase
             ->set('tokens.scheme.light.accent', '#e11d48')
             ->assertSeeHtml(':root{--color-accent:#e11d48');
 
-        // Catalog and foundation pages immediately reflect the live theme changes
-        $this->get('/components/forms')
+        // Subsequent page loads immediately reflect the live working theme in <head>
+        $this->get('/')
             ->assertOk()
             ->assertSee('<style id="lab-theme">', false)
             ->assertSee('--color-accent:#e11d48', false)
             ->assertSee('nunito', false);
 
-        $this->get('/components/actions')
-            ->assertOk()
-            ->assertSee('--color-accent:#e11d48', false);
-
-        $this->get('/theme')
-            ->assertOk()
-            ->assertSee('#e11d48');
-
-        // Navigating back to the generator restores the live working theme
+        // Re-mounting the generator restores the live working theme
         Livewire::test('pages::theme-generator')
             ->assertSet('name', 'Cupcake')
             ->assertSet('tokens.scheme.light.accent', '#e11d48');
@@ -332,17 +319,17 @@ class ThemeGeneratorTest extends TestCase
         $this->assertFalse(app(ActiveTheme::class)->hasWorking());
     }
 
-    public function test_title_renders_in_navbar_and_top_card_consolidates_theme_controls(): void
+    public function test_header_brand_and_top_card_consolidate_theme_controls(): void
     {
-        $html = $this->get('/')
+        $html = (string) $this->get('/')
             ->assertOk()
             ->getContent();
 
+        $this->assertMatchesRegularExpression('/data-flux-header[^>]*>[\s\S]*?Flux Themes/i', $html);
         $this->assertMatchesRegularExpression('/data-flux-navbar[^>]*>[\s\S]*?Theme Generator/i', $html);
         $this->assertStringContainsString('Theme Name', $html);
         $this->assertStringContainsString('Presets', $html);
         $this->assertStringContainsString('Saved Themes', $html);
-        $this->assertStringNotContainsString('Every colour Flux reads, editable per scheme.', $html);
     }
 
     public function test_windowed_live_preview_renders_shell_and_three_layout_tabs(): void

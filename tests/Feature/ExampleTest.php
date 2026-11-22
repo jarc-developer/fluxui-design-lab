@@ -10,14 +10,14 @@ class ExampleTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * The root route serves the theme generator and is publicly accessible:
-     * the lab has no authentication.
+     * The root route serves the Flux Themes landing page and interactive theme generator.
      */
     public function test_root_returns_a_successful_response(): void
     {
         $response = $this->get(route('home'));
 
         $response->assertOk();
+        $response->assertSee('Flux Themes');
         $response->assertSee('Theme Generator');
     }
 }
