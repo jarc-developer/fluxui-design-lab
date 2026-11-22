@@ -9,27 +9,22 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
-                'resources/js/passkeys.js',
             ],
             refresh: true,
             fonts: [
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
+                    optimizedFallbacks: false,
                 }),
             ],
         }),
         tailwindcss(),
     ]),
     server: {
-        // Pinned so this dev server never collides with the Vite servers of the
-        // sibling projects on 5173 / 5174. strictPort makes a taken port fail
-        // loudly instead of silently drifting to 5176.
         host: '0.0.0.0',
         port: 5175,
         strictPort: true,
         cors: true,
-        // The browser runs on the host, not inside the container, so HMR and the
-        // generated public/hot file must advertise localhost.
         hmr: {
             host: 'localhost',
         },

@@ -2,8 +2,10 @@
 
 namespace App\Console\Commands;
 
-use App\Models\Theme;
+use App\Support\Theme\Presets;
+use App\Support\Theme\ThemeCodec;
 use App\Support\Theme\ThemeCompiler;
+use App\Support\Theme\ThemeTokens;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 
@@ -15,7 +17,9 @@ class ThemeExport extends Command
      * @var string
      */
     protected $signature = 'theme:export
-                            {theme? : The slug of the theme to export (defaults to currently active theme)}
+                            {theme=flux-default : Built-in preset slug (flux-default, indigo, emerald, rose, ocean, cupcake)}
+                            {--code= : Optional compressed share code (?theme=...) to export instead of a preset}
+                            {--name= : Custom theme name for the CSS header when exporting via --code}
                             {--path= : File path to write the output to instead of stdout}
                             {--json : Export raw JSON tokens instead of Tailwind CSS}';
 
@@ -24,35 +28,50 @@ class ThemeExport extends Command
      *
      * @var string
      */
-    protected $description = 'Export a theme as Tailwind v4 CSS or JSON tokens for use in other projects';
+    protected $description = 'Export a built-in preset or share code as Tailwind v4 CSS or JSON tokens';
 
     /**
      * Execute the console command.
      */
     public function handle(ThemeCompiler $compiler): int
     {
-        $slug = $this->argument('theme');
+        $code = $this->option('code');
 
-        $theme = $slug
-            ? Theme::query()->where('slug', $slug)->first()
-            : Theme::query()->active()->first();
+        if (is_string($code) && trim($code) !== '') {
+            $tokens = ThemeCodec::decode(trim($code));
+            if ($tokens === null) {
+                $this->error('Invalid theme share code provided to --code.');
 
-        if (! $theme) {
-            $this->error($slug ? "Theme with slug [{$slug}] not found." : 'No active theme found.');
+                return self::FAILURE;
+            }
 
-            return self::FAILURE;
+            $customName = $this->option('name');
+            $name = is_string($customName) && trim($customName) !== '' ? trim($customName) : 'Shared Theme';
+        } else {
+            $slug = (string) $this->argument('theme');
+            $preset = Presets::all()[$slug] ?? null;
+
+            if ($preset === null) {
+                $available = implode(', ', array_keys(Presets::all()));
+                $this->error("Preset [{$slug}] not found. Available presets: {$available}");
+
+                return self::FAILURE;
+            }
+
+            $tokens = ThemeTokens::fromArray($preset['tokens']);
+            $name = $preset['name'];
         }
 
-        $output = (string) ($this->option('json')
-            ? json_encode($theme->tokens->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
-            : $compiler->export($theme->tokens, $theme->name));
+        $output = $this->option('json')
+            ? (string) json_encode($tokens->toArray(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR)
+            : $compiler->export($tokens, $name);
 
         $path = $this->option('path');
 
-        if ($path) {
+        if (is_string($path) && $path !== '') {
             File::ensureDirectoryExists(dirname($path));
             File::put($path, $output);
-            $this->info("Theme [{$theme->name}] exported to [{$path}].");
+            $this->info("Theme [{$name}] exported to [{$path}].");
         } else {
             $this->line($output);
         }

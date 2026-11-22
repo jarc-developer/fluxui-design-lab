@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\Theme;
-use App\Support\Theme\ActiveTheme;
 use App\Support\Theme\Color;
 use App\Support\Theme\DaisyThemeMapper;
 use App\Support\Theme\DarkScheme;
@@ -12,7 +10,6 @@ use App\Support\Theme\ThemeCompiler;
 use App\Support\Theme\ThemeScheme;
 use App\Support\Theme\ThemeTokens;
 use Flux\Flux;
-use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -25,9 +22,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
     /** @var array<string, mixed> */
     public array $tokens = [];
 
-    public string $name = 'Custom Theme';
-
-    public ?int $selectedThemeId = null;
+    public string $name = 'Flux default';
 
     public bool $previewDark = false;
 
@@ -35,17 +30,20 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
 
     public string $previewTab = 'dashboard';
 
-    public string $dashboardSubTab = 'overview';
-
-    public string $exportFormat = 'css';
-
     public string $importPayload = '';
 
-    /** daisyUI fields dropped by the last import, shown as a report. */
+    /**
+     * daisyUI fields dropped by the last import, shown as a report.
+     *
+     * @var list<string>
+     */
     public array $importReport = [];
 
     /** Import option: seed the dark scheme from daisyUI's neutral colours. */
     public bool $importNeutralDark = false;
+
+    /** Lazy-renders the Advanced all-variables table only when opened. */
+    public bool $showVariables = false;
 
     public float $fillHue = 0;
 
@@ -53,43 +51,19 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
 
     public function mount(): void
     {
-        // 1. Share URL code (?theme=...) takes priority and applies platform-wide
         if ($this->themeCode !== '') {
             $decoded = ThemeCodec::decode($this->themeCode);
             if ($decoded !== null) {
-                $this->selectedThemeId = null;
                 $this->tokens = $decoded->toArray();
                 $this->name = 'Shared Theme';
-                $this->applyPlatformTheme();
+                $this->syncThemeCode();
 
                 return;
             }
         }
 
-        // 2. Working live theme across the platform
-        $working = app(ActiveTheme::class)->working();
-        if ($working !== null) {
-            $this->selectedThemeId = $working['selectedThemeId'];
-            $this->name = $working['name'];
-            $this->tokens = $working['tokens']->toArray();
-            $this->syncThemeCode();
-
-            return;
-        }
-
-        // 3. Active theme in DB
-        $active = Theme::query()->active()->first();
-        if ($active !== null) {
-            $this->selectedThemeId = $active->id;
-            $this->name = $active->name;
-            $this->tokens = $active->tokens->toArray();
-            $this->syncThemeCode();
-
-            return;
-        }
-
-        // 4. Fallback defaults
         $this->tokens = ThemeTokens::defaults();
+        $this->name = 'Flux default';
         $this->syncThemeCode();
     }
 
@@ -101,14 +75,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
             $this->materializeDark();
         }
 
-        $this->applyPlatformTheme();
-    }
-
-    public function updatedName(): void
-    {
-        if (app(ActiveTheme::class)->hasWorking()) {
-            $this->applyPlatformTheme();
-        }
+        $this->syncThemeCode();
     }
 
     public function syncThemeCode(): void
@@ -116,15 +83,6 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
         $tokens = ThemeTokens::tryFrom($this->tokens);
         if ($tokens !== null) {
             $this->themeCode = ThemeCodec::encode($tokens);
-        }
-    }
-
-    public function applyPlatformTheme(): void
-    {
-        $tokens = ThemeTokens::tryFrom($this->tokens);
-        if ($tokens !== null) {
-            $this->themeCode = ThemeCodec::encode($tokens);
-            app(ActiveTheme::class)->setWorking($tokens, $this->name, $this->selectedThemeId);
         }
     }
 
@@ -215,15 +173,6 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
         return (string) json_encode($this->tokens, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     }
 
-    /**
-     * @return Collection<int, Theme>
-     */
-    #[Computed]
-    public function savedThemes(): Collection
-    {
-        return Theme::query()->orderBy('name')->get();
-    }
-
     public function setDarkMode(string $mode): void
     {
         if ($mode === 'manual') {
@@ -233,7 +182,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
             $this->tokens['scheme']['dark'] = null;
         }
 
-        $this->applyPlatformTheme();
+        $this->syncThemeCode();
     }
 
     /**
@@ -247,7 +196,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
         }
 
         data_set($this->tokens, "scheme.dark.{$path}", $value === '' ? null : $value);
-        $this->applyPlatformTheme();
+        $this->syncThemeCode();
     }
 
     public function resetSlot(string $scheme, string $path): void
@@ -255,24 +204,32 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
         $suggestion = data_get($this->suggestions[$scheme] ?? [], $path);
 
         if ($scheme === 'dark') {
-            $this->setDarkSlot($path, $suggestion);
+            $this->setDarkSlot($path, is_string($suggestion) ? $suggestion : null);
 
             return;
         }
 
         data_set($this->tokens, "scheme.light.{$path}", $suggestion);
-        $this->applyPlatformTheme();
+        $this->syncThemeCode();
     }
 
     /**
      * One-shot derivation: fill a scheme's neutral ramp from a hue/chroma tint.
      */
-    public function fillRamp(string $scheme): void
+    public function fillRamp(string $scheme, ?float $hue = null, ?float $chroma = null): void
     {
         if ($scheme === 'dark' && ($this->tokens['darkMode'] ?? 'auto') === 'auto') {
             Flux::toast(text: 'Switch the dark scheme to Manual before editing its ramp.', variant: 'warning');
 
             return;
+        }
+
+        if ($hue !== null) {
+            $this->fillHue = $hue;
+        }
+
+        if ($chroma !== null) {
+            $this->fillChroma = $chroma;
         }
 
         $ramp = array_map(
@@ -284,7 +241,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
             $this->tokens['scheme'][$scheme]['zinc'][$step] = $hex;
         }
 
-        $this->applyPlatformTheme();
+        $this->syncThemeCode();
         Flux::toast(text: 'Neutral ramp filled from the tint controls.', variant: 'success');
     }
 
@@ -297,41 +254,44 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
 
         $this->tokens = $preset['tokens'];
         $this->name = $preset['name'];
+        $this->syncThemeCode();
 
-        $existing = Theme::query()->where('slug', $key)->first();
-        $this->selectedThemeId = $existing?->id;
-
-        $this->applyPlatformTheme();
         Flux::toast(text: "Loaded {$preset['name']} preset.", variant: 'success');
     }
 
-    public function loadTheme(int $id): void
+    /**
+     * Load and server-validate a theme stored in the visitor's browser localStorage.
+     *
+     * @param  array<string, mixed>  $tokens
+     */
+    public function loadLocalTheme(string $name, array $tokens): void
     {
-        $theme = Theme::find($id);
-        if (! $theme) {
+        if (! isset($tokens['scheme']) && ! ThemeTokens::isLegacy($tokens)) {
+            Flux::toast(text: 'Saved theme data could not be validated.', variant: 'danger');
+
             return;
         }
 
-        $this->selectedThemeId = $theme->id;
-        $this->name = $theme->name;
-        $this->tokens = $theme->tokens->toArray();
+        $validated = ThemeTokens::tryFrom($tokens);
+        if ($validated === null) {
+            Flux::toast(text: 'Saved theme data could not be validated.', variant: 'danger');
 
-        if ($theme->is_active) {
-            app(ActiveTheme::class)->clearWorking();
-            $this->syncThemeCode();
-        } else {
-            $this->applyPlatformTheme();
+            return;
         }
 
-        Flux::toast(text: "Loaded theme [{$theme->name}].", variant: 'success');
+        $cleanName = mb_substr(trim($name) !== '' ? trim($name) : 'Saved Theme', 0, 50);
+        $this->name = $cleanName;
+        $this->tokens = $validated->toArray();
+        $this->syncThemeCode();
+
+        Flux::toast(text: "Loaded theme [{$cleanName}].", variant: 'success');
     }
 
     public function randomize(): void
     {
         $this->tokens = Presets::random();
-        $this->selectedThemeId = null;
         $this->name = 'Random '.ucfirst((string) $this->tokens['font']);
-        $this->applyPlatformTheme();
+        $this->syncThemeCode();
 
         Flux::toast(text: 'Generated a random theme palette.', variant: 'success');
     }
@@ -340,122 +300,9 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
     {
         $this->tokens = ThemeTokens::defaults();
         $this->name = 'Flux default';
-        $this->selectedThemeId = Theme::query()->where('slug', 'flux-default')->value('id');
-        $this->applyPlatformTheme();
-
-        Flux::toast(text: 'Reset to default theme values.', variant: 'success');
-    }
-
-    public function save(): void
-    {
-        $this->validate([
-            'name' => 'required|string|max:50',
-        ]);
-
-        $tokens = ThemeTokens::fromArray($this->tokens);
-
-        if ($this->selectedThemeId !== null) {
-            $theme = Theme::find($this->selectedThemeId);
-            if ($theme) {
-                $theme->update([
-                    'name' => $this->name,
-                    'tokens' => $tokens,
-                ]);
-
-                if (! $theme->is_active) {
-                    $this->applyPlatformTheme();
-                }
-
-                Flux::toast(text: "Theme [{$theme->name}] updated.", variant: 'success');
-
-                return;
-            }
-        }
-
-        $this->saveAs();
-    }
-
-    public function saveAs(): void
-    {
-        $this->validate([
-            'name' => 'required|string|max:50',
-        ]);
-
-        $tokens = ThemeTokens::fromArray($this->tokens);
-        $slug = Theme::uniqueSlug($this->name);
-
-        $theme = Theme::create([
-            'name' => $this->name,
-            'slug' => $slug,
-            'tokens' => $tokens,
-        ]);
-
-        $this->selectedThemeId = $theme->id;
-        $this->applyPlatformTheme();
-
-        Flux::toast(text: "Theme [{$theme->name}] saved as new theme.", variant: 'success');
-    }
-
-    public function activate(): void
-    {
-        $this->validate([
-            'name' => 'required|string|max:50',
-        ]);
-
-        $tokens = ThemeTokens::fromArray($this->tokens);
-
-        if ($this->selectedThemeId !== null) {
-            $theme = Theme::find($this->selectedThemeId);
-            if ($theme) {
-                $theme->update(['name' => $this->name, 'tokens' => $tokens]);
-                $theme->activate();
-                $this->syncThemeCode();
-                Flux::toast(text: "Theme [{$theme->name}] saved as active project theme.", variant: 'success');
-
-                return;
-            }
-        }
-
-        $slug = Theme::uniqueSlug($this->name);
-        $theme = Theme::create([
-            'name' => $this->name,
-            'slug' => $slug,
-            'tokens' => $tokens,
-        ]);
-
-        $this->selectedThemeId = $theme->id;
-        $theme->activate();
         $this->syncThemeCode();
 
-        Flux::toast(text: "Theme [{$theme->name}] saved as active project theme.", variant: 'success');
-    }
-
-    public function deleteTheme(int $id): void
-    {
-        $theme = Theme::find($id);
-        if (! $theme) {
-            return;
-        }
-
-        if ($theme->is_active) {
-            Flux::toast(text: 'The active theme cannot be deleted.', variant: 'danger');
-
-            return;
-        }
-
-        $hadWorking = app(ActiveTheme::class)->hasWorking();
-        $name = $theme->name;
-        $theme->delete();
-
-        if ($this->selectedThemeId === $id) {
-            $this->selectedThemeId = null;
-        }
-
-        if ($hadWorking) {
-            $this->applyPlatformTheme();
-        }
-
-        Flux::toast(text: "Theme [{$name}] deleted.", variant: 'success');
+        Flux::toast(text: 'Reset to default theme values.', variant: 'success');
     }
 
     public function importTheme(): void
@@ -471,11 +318,10 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
             $tokens = ThemeTokens::tryFrom($daisy['tokens']);
             if ($tokens !== null) {
                 $this->tokens = $tokens->toArray();
-                $this->selectedThemeId = null;
                 $this->name = ucfirst($daisy['name']);
-                $this->importReport = $daisy['dropped'];
+                $this->importReport = array_values($daisy['dropped']);
                 $this->importPayload = '';
-                $this->applyPlatformTheme();
+                $this->syncThemeCode();
                 $this->modal('import-modal')->close();
 
                 $dropped = count($daisy['dropped']);
@@ -492,11 +338,10 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
         $fromCode = ThemeCodec::decode($payload);
         if ($fromCode !== null) {
             $this->tokens = $fromCode->toArray();
-            $this->selectedThemeId = null;
             $this->name = 'Imported Theme';
             $this->importReport = [];
             $this->importPayload = '';
-            $this->applyPlatformTheme();
+            $this->syncThemeCode();
             $this->modal('import-modal')->close();
             Flux::toast(text: 'Theme imported successfully from share code.', variant: 'success');
 
@@ -509,11 +354,10 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
             $fromArray = ThemeTokens::tryFrom($json);
             if ($fromArray !== null) {
                 $this->tokens = $fromArray->toArray();
-                $this->selectedThemeId = null;
                 $this->name = 'Imported Theme';
                 $this->importReport = [];
                 $this->importPayload = '';
-                $this->applyPlatformTheme();
+                $this->syncThemeCode();
                 $this->modal('import-modal')->close();
                 Flux::toast(text: 'Theme imported successfully from JSON.', variant: 'success');
 
@@ -527,7 +371,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
     public function clearStatus(string $status): void
     {
         $this->tokens['scheme'][$this->editorScheme]['status'][$status] = null;
-        $this->applyPlatformTheme();
+        $this->syncThemeCode();
     }
 
     /**
@@ -589,7 +433,12 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
 <div
     class="flex w-full flex-1 flex-col"
     x-data="{
+        storageKey: 'flux_themes_saved_v1',
+        savedThemes: [],
+        selectedLocalId: null,
         init() {
+            this.loadSavedFromStorage();
+
             const initialScheme = this.$flux.dark ? 'dark' : 'light';
             if (this.$wire.editorScheme !== initialScheme) {
                 this.$wire.$set('editorScheme', initialScheme);
@@ -608,6 +457,66 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                     this.$flux.dark = isDark;
                 }
             });
+        },
+        loadSavedFromStorage() {
+            try {
+                const raw = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+                this.savedThemes = Array.isArray(raw)
+                    ? raw.filter((item) => item && typeof item.id === 'string' && typeof item.name === 'string' && item.tokens)
+                    : [];
+            } catch (e) {
+                this.savedThemes = [];
+            }
+        },
+        persistSaved() {
+            try {
+                localStorage.setItem(this.storageKey, JSON.stringify(this.savedThemes));
+            } catch (e) {}
+        },
+        saveToBrowser(asNew = false) {
+            const trimmed = (this.$wire.name || 'Custom Theme').trim().slice(0, 50) || 'Custom Theme';
+            const tokensCopy = JSON.parse(JSON.stringify(this.$wire.tokens));
+            const existingIdx = !asNew && this.selectedLocalId
+                ? this.savedThemes.findIndex((item) => item.id === this.selectedLocalId)
+                : -1;
+
+            if (existingIdx !== -1) {
+                this.savedThemes[existingIdx] = {
+                    ...this.savedThemes[existingIdx],
+                    name: trimmed,
+                    tokens: tokensCopy,
+                    updatedAt: Date.now(),
+                };
+                this.persistSaved();
+                $flux.toast({ text: `Updated [${trimmed}] in your browser.`, variant: 'success' });
+                return;
+            }
+
+            const id = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                ? crypto.randomUUID()
+                : 'theme-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+            this.savedThemes.unshift({ id, name: trimmed, tokens: tokensCopy, updatedAt: Date.now() });
+            this.selectedLocalId = id;
+            this.persistSaved();
+            $flux.toast({ text: `Saved [${trimmed}] in your browser.`, variant: 'success' });
+        },
+        selectSaved(item) {
+            this.selectedLocalId = item.id;
+            this.$wire.loadLocalTheme(item.name, item.tokens);
+        },
+        removeSaved(id, name) {
+            this.savedThemes = this.savedThemes.filter((item) => item.id !== id);
+            if (this.selectedLocalId === id) {
+                this.selectedLocalId = null;
+            }
+            this.persistSaved();
+            $flux.toast({ text: `Deleted [${name}] from your browser.`, variant: 'success' });
+        },
+        accentSwatch(item) {
+            const scheme = this.$wire.editorScheme === 'dark' && item.tokens?.scheme?.dark
+                ? item.tokens.scheme.dark
+                : item.tokens?.scheme?.light;
+            return scheme?.accent || '#262626';
         }
     }"
 >
@@ -652,7 +561,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                     Start Customizing
                 </flux:button>
 
-                <flux:button wire:click="randomize" variant="filled" icon="arrow-path" class="cursor-pointer">
+                <flux:button x-on:click="selectedLocalId = null" wire:click="randomize" variant="filled" icon="arrow-path" class="cursor-pointer">
                     Randomize Theme
                 </flux:button>
 
@@ -684,6 +593,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                         @endphp
                         <button
                             type="button"
+                            x-on:click="selectedLocalId = null"
                             wire:click="loadPreset('{{ $slug }}')"
                             data-hero-preset="{{ $slug }}"
                             class="inline-flex cursor-pointer items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors {{ $isCurrentPreset ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-950' : 'border-zinc-200 bg-white/80 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-800' }}"
@@ -710,7 +620,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                 </div>
             </div>
 
-            {{-- Top Control Card: Theme Name, Actions, Presets & Saved Themes --}}
+            {{-- Top Control Card: Theme Name, Actions, Presets & Browser Saved Themes --}}
             <flux:card class="flex flex-col gap-5">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                     <div class="flex flex-wrap items-end gap-3">
@@ -718,37 +628,38 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                             <flux:label>Theme Name</flux:label>
                             <flux:input wire:model.live.debounce.300ms="name" icon="swatch" placeholder="e.g. Ocean Blue" />
                         </flux:field>
-
-                        <div class="flex h-10 items-center">
-                            @if (app(\App\Support\Theme\ActiveTheme::class)->hasWorking())
-                                <flux:badge color="blue" size="sm" icon="bolt">Live Across Platform</flux:badge>
-                            @elseif ($selectedThemeId && ($activeTheme = $this->savedThemes->firstWhere('id', $selectedThemeId)) && $activeTheme->is_active)
-                                <flux:badge color="green" size="sm" icon="check">Active Project Theme</flux:badge>
-                            @endif
-                        </div>
                     </div>
 
                     <div class="flex flex-wrap items-center gap-2">
-                        <flux:button wire:click="activate" variant="primary" icon="bolt" class="cursor-pointer">
-                            Activate Globally
+                        <flux:button
+                            type="button"
+                            variant="primary"
+                            icon="bookmark"
+                            class="cursor-pointer"
+                            x-on:click="saveToBrowser(false)"
+                        >
+                            Save Theme
                         </flux:button>
 
-                        <flux:dropdown>
-                            <flux:button variant="filled" icon-trailing="chevron-down">Save...</flux:button>
-                            <flux:menu>
-                                <flux:menu.item wire:click="save" icon="arrow-down-tray">Save Theme</flux:menu.item>
-                                <flux:menu.item wire:click="saveAs" icon="document-plus">Save As New Theme</flux:menu.item>
-                            </flux:menu>
-                        </flux:dropdown>
+                        <flux:button
+                            type="button"
+                            variant="filled"
+                            icon="document-plus"
+                            class="cursor-pointer"
+                            x-show="selectedLocalId !== null"
+                            x-cloak
+                            x-on:click="saveToBrowser(true)"
+                        >
+                            Save Copy
+                        </flux:button>
 
-                        <flux:button wire:click="randomize" variant="subtle" icon="arrow-path" title="Generate coherent random theme">
+                        <flux:button x-on:click="selectedLocalId = null" wire:click="randomize" variant="subtle" icon="arrow-path" title="Generate coherent random theme">
                             Random
                         </flux:button>
 
                         <flux:button
                             variant="subtle"
                             icon="share"
-                            x-data
                             x-on:click="navigator.clipboard.writeText(window.location.origin + window.location.pathname + '?theme={{ $themeCode }}'); $flux.toast({ text: 'Shareable theme link copied to clipboard!', variant: 'success' })"
                             title="Copy share link"
                         >
@@ -770,7 +681,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                     <div class="flex flex-col gap-2.5 lg:col-span-5">
                         <div class="flex items-center justify-between">
                             <flux:heading size="sm">Presets</flux:heading>
-                            <flux:button wire:click="resetToDefaults" variant="ghost" size="xs">Reset</flux:button>
+                            <flux:button x-on:click="selectedLocalId = null" wire:click="resetToDefaults" variant="ghost" size="xs">Reset</flux:button>
                         </div>
 
                         <div class="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
@@ -784,8 +695,9 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                                 @endphp
                                 <button
                                     type="button"
+                                    x-on:click="selectedLocalId = null"
                                     wire:click="loadPreset('{{ $slug }}')"
-                                    class="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 px-2.5 py-1.5 text-start text-xs transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                                    class="flex cursor-pointer items-center justify-between gap-2 rounded-lg border border-zinc-200/80 px-2.5 py-1.5 text-start text-xs transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800"
                                 >
                                     <span class="truncate font-medium text-zinc-900 dark:text-zinc-100">{{ $preset['name'] }}</span>
                                     <span class="flex shrink-0 items-center gap-1">
@@ -797,46 +709,53 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                         </div>
                     </div>
 
-                    {{-- Saved Themes in Database --}}
+                    {{-- Browser localStorage Saved Themes --}}
                     <div class="flex flex-col gap-2.5 lg:col-span-7 lg:border-s lg:border-zinc-200 lg:ps-5 dark:lg:border-zinc-800">
                         <div class="flex items-center justify-between">
-                            <flux:heading size="sm">Saved Themes</flux:heading>
-                            <flux:badge size="sm" color="zinc">{{ $this->savedThemes->count() }}</flux:badge>
+                            <div class="flex items-center gap-2">
+                                <flux:heading size="sm">Saved Themes</flux:heading>
+                                <span class="text-[11px] text-zinc-400 dark:text-zinc-500">Stored in your browser</span>
+                            </div>
+                            <flux:badge size="sm" color="zinc"><span x-text="savedThemes.length">0</span></flux:badge>
                         </div>
 
-                        <div class="grid max-h-28 grid-cols-1 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
-                            @forelse ($this->savedThemes as $savedTheme)
-                                @php
-                                    $savedScheme = $editorScheme === 'dark' ? $savedTheme->tokens->darkScheme() : $savedTheme->tokens->light;
-                                @endphp
-                                <div class="flex items-center justify-between gap-1 rounded-lg border border-zinc-200/80 px-2.5 py-1.5 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800 {{ $selectedThemeId === $savedTheme->id ? 'bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-600' : '' }}">
+                        <div
+                            x-show="savedThemes.length > 0"
+                            x-cloak
+                            class="grid max-h-28 grid-cols-1 gap-1.5 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3"
+                        >
+                            <template x-for="item in savedThemes" :key="item.id">
+                                <div
+                                    class="flex items-center justify-between gap-1 rounded-lg border border-zinc-200/80 px-2.5 py-1.5 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                                    x-bind:class="selectedLocalId === item.id ? 'bg-zinc-100 ring-1 ring-zinc-300 dark:bg-zinc-800 dark:ring-zinc-600' : ''"
+                                >
                                     <button
                                         type="button"
-                                        wire:click="loadTheme({{ $savedTheme->id }})"
-                                        class="flex min-w-0 flex-1 items-center gap-2 text-start text-xs text-zinc-800 dark:text-zinc-200"
+                                        x-on:click="selectSaved(item)"
+                                        class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 text-start text-xs text-zinc-800 dark:text-zinc-200"
                                     >
-                                        <span class="size-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/15" style="background-color: {{ $savedScheme->accent }}"></span>
-                                        <span class="truncate font-medium">{{ $savedTheme->name }}</span>
-                                        @if ($savedTheme->is_active)
-                                            <flux:badge color="green" size="sm">active</flux:badge>
-                                        @endif
+                                        <span
+                                            class="size-3.5 shrink-0 rounded-full border border-black/10 dark:border-white/15"
+                                            x-bind:style="{ backgroundColor: accentSwatch(item) }"
+                                        ></span>
+                                        <span class="truncate font-medium" x-text="item.name"></span>
                                     </button>
 
-                                    @if (! $savedTheme->is_active)
-                                        <flux:button
-                                            wire:click="deleteTheme({{ $savedTheme->id }})"
-                                            wire:confirm="Delete theme '{{ $savedTheme->name }}'?"
-                                            variant="ghost"
-                                            size="xs"
-                                            icon="trash"
-                                            class="shrink-0 text-zinc-400 hover:text-red-600"
-                                        />
-                                    @endif
+                                    <button
+                                        type="button"
+                                        x-on:click="removeSaved(item.id, item.name)"
+                                        title="Delete saved theme"
+                                        class="inline-flex size-6 shrink-0 cursor-pointer items-center justify-center rounded text-zinc-400 transition-colors hover:bg-zinc-200/70 hover:text-red-600 dark:hover:bg-zinc-700/60"
+                                    >
+                                        <flux:icon name="trash" variant="micro" />
+                                    </button>
                                 </div>
-                            @empty
-                                <flux:text size="sm" class="text-zinc-500">No saved themes yet.</flux:text>
-                            @endforelse
+                            </template>
                         </div>
+
+                        <p x-show="savedThemes.length === 0" class="text-xs text-zinc-500 dark:text-zinc-400">
+                            No saved themes in this browser yet — click <strong class="font-medium text-zinc-700 dark:text-zinc-300">Save Theme</strong> to bookmark custom palettes privately in local storage.
+                        </p>
                     </div>
                 </div>
             </flux:card>
@@ -953,7 +872,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
 
                         @foreach ($zincGroups as $groupLabel => $steps)
                             <div class="flex flex-col gap-2">
-                                <flux:label class="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">{{ $groupLabel }}</flux:label>
+                                <flux:label class="text-[10px] font-semibold tracking-wide text-zinc-400 uppercase">{{ $groupLabel }}</flux:label>
                                 @foreach ($steps as $step)
                                     <div class="flex items-center justify-between gap-3">
                                         <flux:label class="font-mono text-xs">zinc-{{ $step }}</flux:label>
@@ -991,18 +910,21 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                             </div>
                         @endforeach
 
-                        {{-- One-shot ramp fill --}}
-                        <div class="flex flex-col gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
+                        {{-- One-shot ramp fill (pure client-side sliders, zero network drag chatter) --}}
+                        <div
+                            x-data="{ hue: @js($fillHue), chroma: @js($fillChroma) }"
+                            class="flex flex-col gap-3 rounded-lg border border-zinc-200 p-3 dark:border-zinc-800"
+                        >
                             <flux:label class="text-xs font-semibold">Fill ramp from tint</flux:label>
                             <div class="flex items-center gap-2">
-                                <span class="w-12 font-mono text-[10px] text-zinc-500">{{ round($fillHue) }}°</span>
-                                <input type="range" min="0" max="360" step="1" wire:model.live.debounce.50ms="fillHue" class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gradient-to-r from-red-500 via-green-500 via-blue-500 to-red-500" />
+                                <span class="w-12 font-mono text-[10px] text-zinc-500" x-text="Math.round(hue) + '°'">0°</span>
+                                <input type="range" min="0" max="360" step="1" x-model.number="hue" class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-gradient-to-r from-red-500 via-green-500 via-blue-500 to-red-500" />
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="w-12 font-mono text-[10px] text-zinc-500">{{ number_format($fillChroma, 3) }}</span>
-                                <input type="range" min="0" max="0.06" step="0.002" wire:model.live.debounce.50ms="fillChroma" class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-800 dark:bg-zinc-700 dark:accent-zinc-200" />
+                                <span class="w-12 font-mono text-[10px] text-zinc-500" x-text="Number(chroma).toFixed(3)">0.000</span>
+                                <input type="range" min="0" max="0.06" step="0.002" x-model.number="chroma" class="h-2 w-full cursor-pointer appearance-none rounded-lg bg-zinc-200 accent-zinc-800 dark:bg-zinc-700 dark:accent-zinc-200" />
                             </div>
-                            <flux:button wire:click="fillRamp('{{ $scheme }}')" variant="subtle" size="sm" icon="paint-brush">
+                            <flux:button x-on:click="$wire.fillRamp('{{ $scheme }}', hue, chroma)" variant="subtle" size="sm" icon="paint-brush">
                                 Fill {{ $scheme }} ramp (all 11 steps)
                             </flux:button>
                         </div>
@@ -1129,7 +1051,6 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                         @include('partials.theme-preview.window', [
                             'previewDark' => $previewDark,
                             'previewTab' => $previewTab,
-                            'dashboardSubTab' => $dashboardSubTab,
                         ])
                     </div>
 
@@ -1160,32 +1081,38 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                         </details>
                     @endif
 
-                    {{-- Advanced: every compiled variable --}}
-                    <details class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                    {{-- Lazy-rendered Advanced: every compiled variable --}}
+                    <details
+                        class="group rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+                        @if ($showVariables) open @endif
+                        x-on:toggle="if ($el.open && !$wire.showVariables) { $wire.$set('showVariables', true) }"
+                    >
                         <summary class="cursor-pointer list-none p-4">
                             <flux:heading size="sm">Advanced · all compiled variables</flux:heading>
                             <flux:text size="xs" class="text-zinc-500">Every CSS variable this theme emits, in both scopes.</flux:text>
                         </summary>
-                        <div class="grid gap-4 border-t border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800">
-                            @foreach (['light' => ':root (light)', 'dark' => '.dark'] as $scope => $label)
-                                <div class="flex flex-col gap-1 rounded-lg p-2 {{ $editorScheme === $scope ? 'bg-zinc-50 ring-1 ring-zinc-200 dark:bg-zinc-800/60 dark:ring-zinc-700' : '' }}">
-                                    <flux:text size="xs" class="font-mono text-zinc-500">{{ $label }}</flux:text>
-                                    <div class="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
-                                        @foreach ($this->previewVariables[$scope] as $var => $value)
-                                            <div class="flex items-center justify-between gap-2 rounded px-1 py-0.5 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-                                                <span class="truncate font-mono text-[10px] text-zinc-500">{{ $var }}</span>
-                                                <span class="flex items-center gap-1.5">
-                                                    @if (preg_match('/^#[0-9a-f]{6}$/i', $value))
-                                                        <span class="size-3 rounded-sm border border-black/10" style="background-color: {{ $value }}"></span>
-                                                    @endif
-                                                    <span class="font-mono text-[10px] text-zinc-700 dark:text-zinc-300">{{ \Illuminate\Support\Str::limit($value, 22) }}</span>
-                                                </span>
-                                            </div>
-                                        @endforeach
+                        @if ($showVariables)
+                            <div class="grid gap-4 border-t border-zinc-200 p-4 sm:grid-cols-2 dark:border-zinc-800">
+                                @foreach (['light' => ':root (light)', 'dark' => '.dark'] as $scope => $label)
+                                    <div class="flex flex-col gap-1 rounded-lg p-2 {{ $editorScheme === $scope ? 'bg-zinc-50 ring-1 ring-zinc-200 dark:bg-zinc-800/60 dark:ring-zinc-700' : '' }}">
+                                        <flux:text size="xs" class="font-mono text-zinc-500">{{ $label }}</flux:text>
+                                        <div class="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+                                            @foreach ($this->previewVariables[$scope] as $var => $value)
+                                                <div class="flex items-center justify-between gap-2 rounded px-1 py-0.5 hover:bg-zinc-50 dark:hover:bg-zinc-800">
+                                                    <span class="truncate font-mono text-[10px] text-zinc-500">{{ $var }}</span>
+                                                    <span class="flex items-center gap-1.5">
+                                                        @if (preg_match('/^#[0-9a-f]{6}$/i', $value))
+                                                            <span class="size-3 rounded-sm border border-black/10" style="background-color: {{ $value }}"></span>
+                                                        @endif
+                                                        <span class="font-mono text-[10px] text-zinc-700 dark:text-zinc-300">{{ \Illuminate\Support\Str::limit($value, 22) }}</span>
+                                                    </span>
+                                                </div>
+                                            @endforeach
+                                        </div>
                                     </div>
-                                </div>
-                            @endforeach
-                        </div>
+                                @endforeach
+                            </div>
+                        @endif
                     </details>
                 </div>
             </div>
@@ -1229,13 +1156,13 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                     ],
                     [
                         'icon' => 'share',
-                        'title' => 'Zero-Backend Share Links',
-                        'body' => 'Every edit serializes into a compact, URL-safe ?theme=... query string so you can bookmark variations, compare options in pull requests, or share links with teammates.',
+                        'title' => 'Private Browser Storage & Share Links',
+                        'body' => 'Bookmark unlimited custom themes privately in your browser localStorage, or share any palette via a compact, zero-backend ?theme=... URL.',
                     ],
                     [
                         'icon' => 'command-line',
                         'title' => 'Tailwind v4 & Artisan CLI Export',
-                        'body' => 'Copy ready-to-paste @theme and .dark CSS blocks from the browser, export raw JSON tokens, or write saved database themes straight to disk via php artisan theme:export.',
+                        'body' => 'Copy ready-to-paste @theme and .dark CSS blocks from the browser, export raw JSON tokens, or generate preset stylesheets directly via php artisan theme:export.',
                     ],
                 ] as $feature)
                     <flux:card class="flex flex-col gap-3 p-6">
@@ -1286,8 +1213,8 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                     <div class="flex gap-3.5">
                         <span class="flex size-7 shrink-0 items-center justify-center rounded-full bg-(--color-accent) text-xs font-bold text-(--color-accent-foreground)">3</span>
                         <div>
-                            <flux:heading size="sm">Or export saved themes via Artisan</flux:heading>
-                            <flux:text size="sm" class="text-zinc-600 dark:text-zinc-400">Write any saved preset directly to a stylesheet from your terminal:</flux:text>
+                            <flux:heading size="sm">Or export presets via Artisan</flux:heading>
+                            <flux:text size="sm" class="text-zinc-600 dark:text-zinc-400">Write any preset or share code directly to a stylesheet from your terminal:</flux:text>
                             <pre class="mt-2 overflow-x-auto rounded-lg bg-zinc-900 px-3.5 py-2.5 font-mono text-xs text-zinc-100"><code>php artisan theme:export ocean --path=resources/css/theme.css</code></pre>
                         </div>
                     </div>
@@ -1306,14 +1233,13 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                             size="xs"
                             variant="primary"
                             icon="document-duplicate"
-                            x-data
-                            x-on:click="navigator.clipboard.writeText($el.closest('[data-quickstart-code]').querySelector('pre code').innerText); $flux.toast({ text: 'Tailwind v4 @theme CSS copied!', variant: 'success' })"
+                            x-on:click="navigator.clipboard.writeText($el.closest('[data-quickstart-wrap]').querySelector('pre code').innerText); $flux.toast({ text: 'Tailwind v4 @theme CSS copied!', variant: 'success' })"
                         >
                             Copy @theme CSS
                         </flux:button>
                     </div>
 
-                    <div data-quickstart-code>
+                    <div data-quickstart-wrap class="contents">
                         <pre class="max-h-96 overflow-auto bg-zinc-950 p-4 font-mono text-xs leading-relaxed text-zinc-100"><code>{{ $this->exportCss }}</code></pre>
                     </div>
                 </flux:card>
@@ -1321,30 +1247,50 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
         </div>
     </section>
 
-    {{-- Export Modal --}}
+    {{-- Export Modal (instant client-side CSS / JSON switching) --}}
     <flux:modal name="export-modal" class="max-w-2xl">
-        <div class="flex flex-col gap-4">
-            <div class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-800">
+        <div x-data="{ format: 'css' }" data-export-modal class="flex flex-col gap-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-3 dark:border-zinc-800">
                 <div>
                     <flux:heading size="lg">Export Theme</flux:heading>
                     <flux:subheading>Export for Tailwind CSS v4 or raw JSON tokens.</flux:subheading>
                 </div>
-                <flux:radio.group wire:model.live="exportFormat" variant="segmented">
-                    <flux:radio value="css">Tailwind CSS</flux:radio>
-                    <flux:radio value="json">JSON Tokens</flux:radio>
-                </flux:radio.group>
+                <div class="inline-flex rounded-lg bg-zinc-100 p-1 dark:bg-zinc-800">
+                    <button
+                        type="button"
+                        x-on:click="format = 'css'"
+                        x-bind:class="format === 'css' ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'"
+                        class="cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                    >
+                        Tailwind CSS
+                    </button>
+                    <button
+                        type="button"
+                        x-on:click="format = 'json'"
+                        x-bind:class="format === 'json' ? 'bg-white text-zinc-900 shadow-xs dark:bg-zinc-900 dark:text-white' : 'text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'"
+                        class="cursor-pointer rounded-md px-3 py-1 text-xs font-medium transition-colors"
+                    >
+                        JSON Tokens
+                    </button>
+                </div>
             </div>
 
             <div class="relative">
-                <pre class="max-h-96 overflow-x-auto rounded-lg bg-zinc-900 p-4 font-mono text-xs text-zinc-100"><code>{{ $exportFormat === 'css' ? $this->exportCss : $this->exportJson }}</code></pre>
+                <pre x-show="format === 'css'" data-export-css class="max-h-96 overflow-x-auto rounded-lg bg-zinc-900 p-4 font-mono text-xs text-zinc-100"><code>{{ $this->exportCss }}</code></pre>
+                <pre x-show="format === 'json'" x-cloak data-export-json class="max-h-96 overflow-x-auto rounded-lg bg-zinc-900 p-4 font-mono text-xs text-zinc-100"><code>{{ $this->exportJson }}</code></pre>
             </div>
 
             <div class="flex items-center justify-end gap-2 pt-2">
                 <flux:button
                     variant="primary"
                     icon="document-duplicate"
-                    x-data
-                    x-on:click="navigator.clipboard.writeText($el.closest('[data-flux-modal]').querySelector('pre code').innerText); $flux.toast({ text: 'Copied to clipboard!', variant: 'success' })"
+                    x-on:click="
+                        const target = format === 'css'
+                            ? $el.closest('[data-export-modal]').querySelector('[data-export-css] code')
+                            : $el.closest('[data-export-modal]').querySelector('[data-export-json] code');
+                        navigator.clipboard.writeText(target.innerText);
+                        $flux.toast({ text: 'Copied to clipboard!', variant: 'success' });
+                    "
                 >
                     Copy to Clipboard
                 </flux:button>
@@ -1377,7 +1323,7 @@ new #[Title('Flux Themes — Theme Generator for Flux UI & Tailwind CSS v4')] cl
                 <flux:modal.close>
                     <flux:button variant="ghost">Cancel</flux:button>
                 </flux:modal.close>
-                <flux:button wire:click="importTheme" variant="primary">Import</flux:button>
+                <flux:button x-on:click="selectedLocalId = null" wire:click="importTheme" variant="primary">Import</flux:button>
             </div>
         </div>
     </flux:modal>

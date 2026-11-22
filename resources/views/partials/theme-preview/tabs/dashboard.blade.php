@@ -1,7 +1,3 @@
-@props([
-    'dashboardSubTab' => 'overview',
-])
-
 <div class="flex flex-col gap-6">
     {{-- KPI Stat Cards --}}
     <div class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 2xl:grid-cols-4">
@@ -42,15 +38,15 @@
         </flux:card>
     </div>
 
-    {{-- Underline Sub-Tabs & Data View --}}
+    {{-- Underline Sub-Tabs & Data View (pure client-side switching) --}}
     <flux:tab.group>
-        <flux:tabs wire:model="dashboardSubTab">
-            <flux:tab name="overview" :selected="$dashboardSubTab === 'overview'">Overview</flux:tab>
-            <flux:tab name="analytics" :selected="$dashboardSubTab === 'analytics'">Analytics</flux:tab>
-            <flux:tab name="reports" :selected="$dashboardSubTab === 'reports'">Reports</flux:tab>
+        <flux:tabs>
+            <flux:tab name="overview" selected>Overview</flux:tab>
+            <flux:tab name="analytics">Analytics</flux:tab>
+            <flux:tab name="reports">Reports</flux:tab>
         </flux:tabs>
 
-        <flux:tab.panel name="overview" :selected="$dashboardSubTab === 'overview'" class="pt-4">
+        <flux:tab.panel name="overview" selected class="pt-4">
             <flux:table>
                 <flux:table.columns>
                     <flux:table.column>Name</flux:table.column>
@@ -68,7 +64,7 @@
                         <flux:table.cell>
                             <flux:badge color="green" size="sm">Active</flux:badge>
                         </flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium">$12,450</flux:table.cell>
+                        <flux:table.cell align="end" class="font-medium tabular-nums">$12,450</flux:table.cell>
                     </flux:table.row>
 
                     <flux:table.row>
@@ -78,7 +74,7 @@
                         <flux:table.cell>
                             <flux:badge color="green" size="sm">Active</flux:badge>
                         </flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium">$8,320</flux:table.cell>
+                        <flux:table.cell align="end" class="font-medium tabular-nums">$8,320</flux:table.cell>
                     </flux:table.row>
 
                     <flux:table.row>
@@ -88,7 +84,7 @@
                         <flux:table.cell>
                             <flux:badge color="amber" size="sm">Pending</flux:badge>
                         </flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium">$6,190</flux:table.cell>
+                        <flux:table.cell align="end" class="font-medium tabular-nums">$6,190</flux:table.cell>
                     </flux:table.row>
 
                     <flux:table.row>
@@ -98,13 +94,13 @@
                         <flux:table.cell>
                             <flux:badge color="blue" size="sm">Invited</flux:badge>
                         </flux:table.cell>
-                        <flux:table.cell align="end" class="tabular-nums font-medium">$4,080</flux:table.cell>
+                        <flux:table.cell align="end" class="font-medium tabular-nums">$4,080</flux:table.cell>
                     </flux:table.row>
                 </flux:table.rows>
             </flux:table>
         </flux:tab.panel>
 
-        <flux:tab.panel name="analytics" :selected="$dashboardSubTab === 'analytics'" class="pt-4">
+        <flux:tab.panel name="analytics" class="pt-4">
             <flux:card class="flex flex-col gap-4">
                 <div class="flex items-center justify-between">
                     <div>
@@ -124,7 +120,7 @@
                         <div class="flex flex-col gap-1.5">
                             <div class="flex items-center justify-between text-xs">
                                 <span class="font-medium text-zinc-700 dark:text-zinc-200">{{ $channel['label'] }}</span>
-                                <span class="tabular-nums text-zinc-500">{{ $channel['visitors'] }} ({{ $channel['share'] }})</span>
+                                <span class="text-zinc-500 tabular-nums">{{ $channel['visitors'] }} ({{ $channel['share'] }})</span>
                             </div>
                             <div class="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
                                 <div class="h-full rounded-full bg-(--color-accent)" style="width: {{ $channel['share'] }}"></div>
@@ -135,7 +131,7 @@
             </flux:card>
         </flux:tab.panel>
 
-        <flux:tab.panel name="reports" :selected="$dashboardSubTab === 'reports'" class="pt-4">
+        <flux:tab.panel name="reports" class="pt-4">
             <div class="flex flex-col gap-2.5">
                 @foreach ([
                     ['title' => 'Q4 Revenue & Retention Summary', 'date' => 'Updated 2 hours ago', 'badge' => 'Ready', 'color' => 'green'],

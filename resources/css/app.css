@@ -2,8 +2,10 @@
 @import '../../vendor/livewire/flux/dist/flux.css';
 
 @source '../views';
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../vendor/livewire/flux-pro/stubs/**/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/resources/views/flux/color-picker/**/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/resources/views/flux/select/**/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/resources/views/flux/tab/**/*.blade.php';
+@source '../../vendor/livewire/flux-pro/stubs/resources/views/flux/tabs.blade.php';
 @source '../../vendor/livewire/flux/stubs/**/*.blade.php';
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -68,7 +70,3 @@ textarea:focus[data-flux-control],
 select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
-
-/* \[:where(&)\]:size-4 {
-    @apply size-4;
-} */

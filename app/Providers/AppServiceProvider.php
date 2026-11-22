@@ -2,7 +2,6 @@
 
 namespace App\Providers;
 
-use App\Support\Theme\ActiveTheme;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -20,7 +19,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(ActiveTheme::class);
+        //
     }
 
     /**
@@ -57,16 +56,10 @@ class AppServiceProvider extends ServiceProvider
     /**
      * Turn off Livewire's "more than one root element" warning.
      *
-     * The check re-parses the mount-stage HTML with libxml2 and throws when it counts
-     * more than one top-level element. libxml2 mis-nests the markup Flux's Blaze
-     * components emit at mount time — ui-* custom elements, self-closing <path> tags
-     * inside inline SVG, and conditional comments — so any page that combines a Blaze
-     * component such as flux:editor with any other content is reported as having a
-     * second root even though the rendered HTML is valid.
-     *
-     * The theme generator combines Flux and Blaze custom elements in a single
-     * workspace, so this debug-only heuristic is disabled defensively while the
-     * page still maintains a single Livewire root element.
+     * The check re-parses the mount-stage HTML with libxml2, which mis-nests custom
+     * ui-* elements and inline SVG emitted by Flux/Blaze components. The theme
+     * generator maintains a single Livewire root element, so disabling this
+     * debug-only heuristic avoids false-positive warnings in local development.
      */
     protected function disableLivewireRootElementHeuristic(): void
     {

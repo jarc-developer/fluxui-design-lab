@@ -2,27 +2,16 @@
 
 namespace Tests\Feature;
 
-use Database\Seeders\ThemeSeeder;
 use DOMDocument;
 use DOMElement;
 use DOMNode;
 use DOMXPath;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class LandingPageTest extends TestCase
 {
-    use RefreshDatabase;
-
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $this->seed(ThemeSeeder::class);
-    }
-
     /**
      * @return array<string, array{0: string}>
      */
